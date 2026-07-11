@@ -1,0 +1,17 @@
+protocol:
+  - name: craftext_base
+    template: reasoning.txt
+    renders:
+      act: 
+        placeholder: "{{action}}"
+        renderer: bullet_list
+      obs:
+        placeholder: "{{observation}}"
+        renderer: map_and_coords
+      dialog:
+        placeholder: "{{dialog}}"
+        renderer: last_five
+      goal:
+        placeholder: "{{goal}}"
+        renderer: just_a_goal
+

@@ -1,0 +1,29 @@
+"""exo-planet action vocabulary (agent-facing tokens)."""
+
+EXO_ENV_ACTIONS: list[str] = [
+    "LEFT",
+    "RIGHT",
+    "UP",
+    "DOWN",
+    "NOOP",
+    "EXTRACT",
+    "ENGAGE_HOSTILE",
+    "DRINK_BRINE",
+    "DORMANCY",
+    "RECHARGE",
+    "PLACE_REPLICATOR",
+    "PLACE_THERMAL_OVEN",
+    "PLACE_BASALT_BEACON",
+    "PLACE_BIO_SPROUT",
+    "MAKE_BONE_DRILL",
+    "MAKE_ROCK_DRILL",
+    "MAKE_TITAN_DRILL",
+    "MAKE_BONE_DAGGER",
+    "MAKE_ROCK_CUTTER",
+    "MAKE_TITAN_BLADE",
+]
+
+EXO_META_ACTIONS: list[str] = ["ASK_OPERATOR", "UPDATE_DATABASE"]
+
+EXO_ALLOWED_ACTIONS_CALL: list[str] = [*EXO_ENV_ACTIONS, "ASK_OPERATOR"]
+EXO_ALLOWED_ACTIONS_META: list[str] = [*EXO_ALLOWED_ACTIONS_CALL, "UPDATE_DATABASE"]

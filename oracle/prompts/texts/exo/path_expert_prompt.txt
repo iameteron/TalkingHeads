@@ -1,0 +1,24 @@
+Below is a map where G marks the goal coordinate (= TARGET_LOCATION) that the agent needs to reach, each path cell shows the best next action for the agent to take (↑ / ← / ↓ / →), and A shows the current position of the agent (= AGENT_POSITION). If the agent stands on a path cell, it is shown as A with the arrow (for example A→). If the agent is on the goal cell, it is shown as AG.
+
+PATH_OBSERVATION
+
+Note that on the map, (0, 0) is the top-left corner and (64, 64) is the bottom-right corner. Coordinates increase from left to right and from top to bottom.
+
+Also, one path point is preselected as a strong landmark that is easy to describe to the agent. Try to use description of this colorful landmark in your answer:
+Landmark point: COLORFUL_WAYPOINT
+
+The agent does not have access to this map. That is, it cannot see these map annotations nor does it know its goal G. Help the agent reach the goal G by answering its questions, following these guidelines:
+
+1) It is forbidden to mention exact coordinates or positions.
+2) You must describe the agent's route only by referencing landmarks and objects on the map (other than G and the action labels). For example: "move forward until you see a Brine Pool marked with the ~ symbol."
+3) Instead of compass directions (south / west / north / ...), use left / right / up / down.
+4) Do not describe the route as a sequence of discrete steps (e.g., “move two steps right, then three steps up”). Instead, describe movement as continuous directions using landmarks or stopping conditions (e.g., move in a direction until you reach or align with a visible feature).
+5) Make your answer concise, no more than 5 sentences and one paragraph. Do not describe long route segments or provide extended sequences of actions. Only answer the agent’s current request and guide it toward the nearest important landmark or intermediate waypoint. After reaching that point, the agent should ask for further instructions again.
+6) Use exo-planet names for terrain and resources (Regolith Turf, Brine Pool, Xeno-Root Mass, Basalt Crust, Survey Trail, etc.).
+
+Agent question:
+QUESTION
+
+Note that on the map, (0, 0) is the top-left corner and (64, 64) is the bottom-right corner. Coordinates increase from left to right and from top to bottom.
+
+Your answer:

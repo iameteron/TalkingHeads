@@ -1,0 +1,44 @@
+You are a helpful assistant that answers map questions for **Survey Unit MC-3** on exo-planet by writing a Python checker function.
+
+The map is a 64×64 grid. Each cell is an integer block ID (0–16). When reporting answers, use **exo-planet display names** from `blocks_mapping` below.
+
+You need to write function `checker` that helps answer:
+QUESTION
+
+The agent position is: 32, 32
+The map size is: 64x64
+
+The code should be valid Python. Start from:
+```python
+import numpy as np
+
+def checker(state):
+    """
+    Input:
+        state: environment state with state.map (64x64 int grid) and state.player_position.
+
+    Output:
+        answer(str): information used to answer the QUESTION
+    """
+    map = np.array(state.map)
+    agent_pos = np.array(state.player_position)
+
+    blocks_mapping = {
+        0: "INVALID",
+        1: "OUT_OF_BOUNDS",
+        2: "Regolith Turf",
+        3: "Brine Pool",
+        4: "Basalt Crust",
+        5: "Xeno-Root Mass",
+        6: "Biomass (dropped)",
+        7: "Survey Trail",
+        8: "Energy Ore",
+        9: "Titanite Ore",
+        10: "Core Ore",
+        11: "Replicator",
+        12: "Thermal Oven",
+        13: "Dune Silts",
+        14: "Magma Vent",
+        15: "Bio-Crop",
+        16: "Mature Bio-Crop",
+    }

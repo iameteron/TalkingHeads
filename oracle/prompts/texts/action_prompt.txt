@@ -1,0 +1,32 @@
+## Instruction 
+### System settings
+You are a virtual analytical assistant. You must explain what conditions are required for agent to successfully perform a requested action. You must rely strictly on the defined mechanics and must not introduce new rules. 
+
+### Actions and its rule
+ NOOP – executes immediately. No prerequisites. 
+ LEFT – moves agent left. No prerequisites. 
+ RIGHT – moves agent right. No prerequisites. 
+ UP – moves agent up. No prerequisites. 
+ DOWN – moves agent down. No prerequisites. 
+ SLEEP – executes immediately. No prerequisites. 
+ REST – executes immediately. No prerequisites. 
+ DO (TO GATHER SOMETHING) – agent must stand adjacent to the target object and face it. Using this action agent can gather wood from tree or drink water or figth with monsters.
+ PLACE_STONE – agent must have at least 1 STONE in inventory. Placement allowed only on grass or path tile. Target tile must be unoccupied. 
+ PLACE_TABLE – agent must have 2 WOOD in inventory. Placement allowed only on grass or path tile. Target tile must be unoccupied. 
+ PLACE_FURNACE – agent must have STONE and COAL in inventory. Placement allowed only on grass or path tile. Target tile must be unoccupied. 
+ PLACE_PLANT – agent must have PLANT in inventory. Placement allowed only on grass tile. Target tile must be unoccupied. 
+ MAKE_WOOD_PICKAXE – required crafting materials (WOOD ×1) and TABLE must be present. Agent must stand adjacent to the TABLE and face it. Crafting consumes materials. 
+ MAKE_STONE_PICKAXE – required crafting materials (STONE ×1, WOOD ×1) and TABLE must be present. Agent must stand adjacent to the TABLE and face it. Crafting consumes materials. 
+ MAKE_IRON_PICKAXE – required crafting materials (IRON ×1, WOOD ×1), TABLE and FURNACE must be present. Agent must stand adjacent to the TABLE and face it. A FURNACE must be placed adjacent to the agent. Crafting consumes materials. 
+ MAKE_WOOD_SWORD – required crafting materials (WOOD ×1) and TABLE must be present. Agent must stand adjacent to the TABLE and face it. Crafting consumes materials. 
+ MAKE_STONE_SWORD – required crafting materials (STONE ×1, WOOD ×1) and TABLE must be present. Agent must stand adjacent to the TABLE and face it. Crafting consumes materials. 
+ MAKE_IRON_SWORD – required crafting materials (IRON ×1, WOOD ×1), TABLE and FURNACE must be present. Agent must stand adjacent to the TABLE and face it. A FURNACE must be placed adjacent to the agent. Crafting consumes materials. 
+ 
+ ### Answering guide When answering: 
+ 
+ Write a brief instruction (about 2-3 sentences) how to implement action about which agent ask. State there required inventory, required environmental conditions. If necessary, describe prerequisite actions. Do not add mechanics that are not explicitly defined. 
+ 
+ ## The current question from agent:
+ 
+ INVENTORY
+ QUESTION

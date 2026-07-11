@@ -1,0 +1,13 @@
+protocol:
+  - name: exo_planet_no_dialog
+    template: reasoning.txt
+    renders:
+      act:
+        placeholder: "{{action}}"
+        renderer: bullet_list
+      obs:
+        placeholder: "{{observation}}"
+        renderer: map_and_coords_exo
+      goal:
+        placeholder: "{{goal}}"
+        renderer: just_a_goal

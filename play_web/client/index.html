@@ -1,0 +1,2374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TalkingHeads</title>
+  <script src="./js/theme.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+  <link href="./css/index.css" rel="stylesheet" />
+</head>
+<body>
+  <div id="app" class="app-wrap">
+    <div v-if="!setupComplete" class="setup-wizard-overlay" role="dialog" aria-modal="true" aria-labelledby="setup-wizard-title">
+      <div class="setup-wizard-shell">
+        <div class="setup-wizard-header">
+          <div class="setup-wizard-eyebrow">TalkingHeads — Session Setup</div>
+          <h1 id="setup-wizard-title" class="setup-wizard-title">Begin Your Journey</h1>
+          <p class="setup-wizard-subtitle">Pick your avatar and nickname, then choose realm, operator, and play mode.</p>
+          <ol class="setup-wizard-steps" aria-label="Setup progress">
+            <li
+              v-for="step in setupWizardSteps"
+              :key="step.id"
+              class="setup-wizard-step"
+              :class="{
+                'is-active': setupWizardStep === step.id,
+                'is-done': setupWizardStep > step.id,
+              }"
+            >
+              <span class="setup-wizard-step-index">{{ step.id }}</span>
+              <span class="setup-wizard-step-label">{{ step.label }}</span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="setup-wizard-body">
+          <section v-if="setupWizardStep === 1" class="setup-wizard-panel">
+            <h2 class="setup-wizard-panel-title">Choose Your Identity</h2>
+            <p class="setup-wizard-panel-lead">Set a nickname and avatar for this browser. Anyone can reuse the same name — there is no account system.</p>
+            <div
+              class="profile-nickname-field"
+              :class="{ 'profile-nickname-field--missing': !playerNickname.trim() }"
+            >
+              <label class="form-label profile-nickname-label mb-1" for="wizardPlayerNickname">
+                Nickname
+              </label>
+              <input
+                id="wizardPlayerNickname"
+                v-model="playerNickname"
+                type="text"
+                maxlength="40"
+                class="form-control form-control-dark profile-nickname-input"
+                placeholder="e.g. Babycar"
+                required
+                aria-required="true"
+                :aria-invalid="!playerNickname.trim() ? 'true' : 'false'"
+                @input="onPlayerNicknameInput"
+              />
+              <p v-if="!playerNickname.trim()" class="profile-nickname-hint mb-0">
+                <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>
+                Enter a nickname to continue — it appears in chat and on the leaderboard.
+              </p>
+            </div>
+            <div class="setup-wizard-panel-lead mb-2">Avatar</div>
+            <div class="avatar-picker-grid" role="listbox" aria-label="Choose avatar">
+              <button
+                v-for="avatar in avatarOptions"
+                :key="avatar.id"
+                type="button"
+                class="avatar-picker-item"
+                :class="{ 'is-selected': playerAvatarId === avatar.id }"
+                :title="avatar.label"
+                :aria-selected="playerAvatarId === avatar.id ? 'true' : 'false'"
+                role="option"
+                @click="selectPlayerAvatar(avatar.id)"
+              >
+                <img :src="avatarSrcFor(avatar.id)" :alt="avatar.label" class="avatar-picker-image" />
+              </button>
+            </div>
+            <div v-if="wizardStepTouched.profile && playerNickname.trim()" class="setup-wizard-choice-notice mt-3" role="status">
+              <i class="bi bi-check-circle-fill setup-wizard-choice-notice-icon" aria-hidden="true"></i>
+              <div class="setup-wizard-choice-notice-body">
+                <div class="setup-wizard-choice-notice-title d-flex align-items-center gap-2">
+                  <img :src="playerAvatarSrc" alt="" class="player-avatar-preview" />
+                  <strong>{{ playerNickname.trim() }}</strong> — profile saved in this browser.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section v-else-if="setupWizardStep === 2" class="setup-wizard-panel">
+            <h2 class="setup-wizard-panel-title">Choose Your Realm</h2>
+            <p class="setup-wizard-panel-lead">Each world changes what the agent knows and what you must teach.</p>
+
+            <div class="setup-wizard-realm-section">
+              <h3 class="setup-wizard-realm-heading">Craftax worlds</h3>
+              <div class="setup-wizard-cards setup-wizard-cards--craftax">
+              <button
+                type="button"
+                class="setup-wizard-card"
+                :class="{ 'is-selected': wizardStepTouched.realm && !isArcGame && !exoPlanetEnabled }"
+                @click="selectWizardRealm('craftax')"
+              >
+                <img src="./assets/agent-icon-craftax.png" alt="" class="setup-wizard-card-icon" />
+                <div class="setup-wizard-card-title">Craftax</div>
+                <p class="setup-wizard-card-text">A Minecraft-like survival world with crafting, gathering, and exploration.</p>
+                <ul class="setup-wizard-card-points">
+                  <li>Familiar sandbox rules</li>
+                  <li>Agent is <strong>partially familiar</strong> with mechanics</li>
+                  <li>Guide it through gaps in its knowledge</li>
+                </ul>
+                <div class="setup-wizard-capability-badges" aria-label="Supported operator modes">
+                  <span
+                    v-for="badge in wizardOperatorBadgesForRealm('craftax')"
+                    :key="'craftax-' + badge.key"
+                    class="setup-wizard-capability-badge"
+                    :class="badge.available ? 'is-available' : 'is-unavailable'"
+                    @mouseenter.stop="showWizardCapabilityTip($event, badge.tooltip)"
+                    @mouseleave.stop="hideWizardCapabilityTip"
+                    @click.stop
+                  >
+                    <i :class="badge.icon" aria-hidden="true"></i>
+                  </span>
+                </div>
+              </button>
+              <button
+                type="button"
+                class="setup-wizard-card"
+                :class="{ 'is-selected': wizardStepTouched.realm && !isArcGame && exoPlanetEnabled }"
+                @click="selectWizardRealm('exo-planet')"
+              >
+                <img src="./assets/agent-icon-exo-planet.png" alt="" class="setup-wizard-card-icon" />
+                <div class="setup-wizard-card-title">Exo-Planet</div>
+                <p class="setup-wizard-card-text">An alien world the LLM has never seen before.</p>
+                <ul class="setup-wizard-card-points">
+                  <li>Unknown environment and rules</li>
+                  <li>Zero prior knowledge for the agent</li>
+                  <li>Teach the oracle how this world works</li>
+                </ul>
+                <div class="setup-wizard-capability-badges" aria-label="Supported operator modes">
+                  <span
+                    v-for="badge in wizardOperatorBadgesForRealm('exo-planet')"
+                    :key="'exo-' + badge.key"
+                    class="setup-wizard-capability-badge"
+                    :class="badge.available ? 'is-available' : 'is-unavailable'"
+                    @mouseenter.stop="showWizardCapabilityTip($event, badge.tooltip)"
+                    @mouseleave.stop="hideWizardCapabilityTip"
+                    @click.stop
+                  >
+                    <i :class="badge.icon" aria-hidden="true"></i>
+                  </span>
+                </div>
+              </button>
+              </div>
+            </div>
+
+            <div class="setup-wizard-realm-section setup-wizard-realm-section--arc">
+              <h3 class="setup-wizard-realm-heading">ARC-AGI-3 games</h3>
+              <p class="setup-wizard-realm-lead">Interactive puzzle games with human-helper scoring on the ARC leaderboard.</p>
+              <div class="setup-wizard-arc-grid" role="list" aria-label="ARC-AGI-3 games">
+                <button
+                  v-for="option in arcGameOptions"
+                  :key="'arc-realm-' + option.id"
+                  type="button"
+                  role="listitem"
+                  class="setup-wizard-arc-tile"
+                  :class="{
+                    'is-selected': wizardStepTouched.realm && isArcGame && arcGameId === option.id,
+                    'is-unavailable': !arcGameAvailable(option),
+                  }"
+                  :disabled="!arcGameAvailable(option)"
+                  :title="arcGameAvailable(option) ? '' : 'Local game files missing. Run play_web/scripts/sync-arc-games.sh or restart play-serve.'"
+                  @click="selectWizardRealm('arc_agi', option.id)"
+                >
+                  <div class="setup-wizard-arc-preview" aria-hidden="true">
+                    <img
+                      v-if="arcGamePreviewVisible(option.id)"
+                      :src="arcGamePreviewSrc(option.id)"
+                      alt=""
+                      class="setup-wizard-arc-preview-image"
+                      @error="onArcGamePreviewError(option.id)"
+                    />
+                    <div v-else class="setup-wizard-arc-preview-placeholder">
+                      <i class="bi bi-grid-3x3-gap"></i>
+                    </div>
+                  </div>
+                  <div class="setup-wizard-arc-tile-title">{{ option.label || option.id }}</div>
+                  <div v-if="!arcGameAvailable(option)" class="setup-wizard-arc-tile-status">Not installed</div>
+                  <div class="setup-wizard-capability-badges setup-wizard-capability-badges--compact" aria-label="Supported operator modes">
+                    <span
+                      v-for="badge in wizardOperatorBadgesForArcOption(option)"
+                      :key="option.id + '-' + badge.key"
+                      class="setup-wizard-capability-badge"
+                      :class="badge.available ? 'is-available' : 'is-unavailable'"
+                      @mouseenter.stop="showWizardCapabilityTip($event, badge.tooltip)"
+                      @mouseleave.stop="hideWizardCapabilityTip"
+                      @click.stop
+                    >
+                      <i :class="badge.icon" aria-hidden="true"></i>
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+            <div v-if="wizardStepTouched.realm" class="setup-wizard-choice-notice" role="status">
+              <i class="bi bi-check-circle-fill setup-wizard-choice-notice-icon" aria-hidden="true"></i>
+              <div class="setup-wizard-choice-notice-body">
+                <div class="setup-wizard-choice-notice-title">
+                  <strong>{{ worldModeLabel }}</strong> — choice saved.
+                </div>
+                <div class="setup-wizard-choice-notice-path">
+                  <span class="setup-wizard-choice-notice-path-lead">To change later:</span>
+                  top panel → <strong>TalkingHeads</strong> → world picker → choose your realm or ARC game.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section v-else-if="setupWizardStep === 3" class="setup-wizard-panel">
+            <h2 class="setup-wizard-panel-title">Choose the Agent's Operator</h2>
+            <p class="setup-wizard-panel-lead">Who answers when the agent asks for help during the session?</p>
+            <div class="setup-wizard-cards">
+              <button
+                type="button"
+                class="setup-wizard-card"
+                :class="{ 'is-selected': wizardStepTouched.role && interactionMode === 'human' }"
+                @click="selectWizardRole('human')"
+              >
+                <div class="setup-wizard-card-emblem"><i class="bi bi-headset"></i></div>
+                <div class="setup-wizard-card-title">Human Operator</div>
+                <p class="setup-wizard-card-text">You answer the player's questions yourself.</p>
+                <ul class="setup-wizard-card-points">
+                  <li>You are the voice of knowledge</li>
+                  <li>The movement agent still runs on AI</li>
+                  <li>Best for human-in-the-loop experiments</li>
+                </ul>
+              </button>
+              <div
+                class="setup-wizard-card setup-wizard-card--locked"
+                :class="{ 'is-selected': wizardStepTouched.role && interactionMode === 'oracle' && !isArcGame }"
+                :aria-disabled="isArcGame ? 'true' : 'false'"
+              >
+                <button
+                  type="button"
+                  class="setup-wizard-card-action"
+                  :disabled="isArcGame"
+                  @click="selectWizardRole('oracle')"
+                >
+                  <div class="setup-wizard-card-emblem"><i class="bi bi-stars"></i></div>
+                  <div class="setup-wizard-card-title">AI Operator</div>
+                  <p class="setup-wizard-card-text">An AI oracle answers using retrieved knowledge.</p>
+                  <ul class="setup-wizard-card-points">
+                    <li>Experts route questions automatically</li>
+                    <li>You observe and intervene when needed</li>
+                    <li>Best for automated operator experiments</li>
+                  </ul>
+                </button>
+                <div v-if="isArcGame" class="setup-wizard-card-lock-banner" role="status">
+                  <i class="bi bi-slash-circle" aria-hidden="true"></i>
+                  Not available for {{ worldModeLabel }} — use Human Operator
+                </div>
+              </div>
+            </div>
+            <div v-if="wizardStepTouched.role" class="setup-wizard-choice-notice" role="status">
+              <i class="bi bi-check-circle-fill setup-wizard-choice-notice-icon" aria-hidden="true"></i>
+              <div class="setup-wizard-choice-notice-body">
+                <div class="setup-wizard-choice-notice-title">
+                  <strong>{{ interactionMode === 'human' ? 'Human Operator' : 'AI Operator' }}</strong> — choice saved.
+                </div>
+                <div class="setup-wizard-choice-notice-path">
+                  <span class="setup-wizard-choice-notice-path-lead">To change later:</span>
+                  top panel → <strong>⚙ Settings</strong> → <strong>Operator</strong> → Human or AI.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section v-else-if="setupWizardStep === 4" class="setup-wizard-panel">
+            <h2 class="setup-wizard-panel-title">How do you want to play?</h2>
+            <p class="setup-wizard-panel-lead">Pick how the agent starts: free-form instructions or a guided companion campaign.</p>
+            <div class="setup-wizard-cards">
+              <div
+                class="setup-wizard-card setup-wizard-card--locked"
+                :class="{ 'is-selected': wizardStepTouched.playMode && !companionModeEnabled && !isArcGame }"
+                :aria-disabled="isArcGame ? 'true' : 'false'"
+              >
+                <button
+                  type="button"
+                  class="setup-wizard-card-action"
+                  :disabled="isArcGame"
+                  @click="selectWizardPlayMode('instruction')"
+                >
+                  <div class="setup-wizard-card-emblem"><i class="bi bi-terminal"></i></div>
+                  <div class="setup-wizard-card-title">Instruction</div>
+                  <p class="setup-wizard-card-text">You give the agent goals one at a time and watch it act.</p>
+                  <ul class="setup-wizard-card-points">
+                    <li>Type a goal in the instruction bar above the map</li>
+                    <li>Press Play — the agent runs for a batch of steps</li>
+                    <li>Answer its questions in the operator panel when it asks</li>
+                    <li>Best for free exploration and teaching step by step</li>
+                  </ul>
+                </button>
+                <div v-if="isArcGame" class="setup-wizard-card-lock-banner" role="status">
+                  <i class="bi bi-slash-circle" aria-hidden="true"></i>
+                  Not available for {{ worldModeLabel }} — use Companion mode
+                </div>
+              </div>
+              <button
+                type="button"
+                class="setup-wizard-card"
+                :class="{ 'is-selected': wizardStepTouched.playMode && companionModeEnabled }"
+                @click="selectWizardPlayMode('companion')"
+              >
+                <div class="setup-wizard-card-emblem"><i class="bi bi-signpost-split"></i></div>
+                <div class="setup-wizard-card-title">Companion</div>
+                <p class="setup-wizard-card-text">The agent follows a level campaign and builds knowledge as it progresses.</p>
+                <ul class="setup-wizard-card-points">
+                  <li>Achievement strip shows campaign levels over the game field</li>
+                  <li>Press START on the strip to run companion research</li>
+                  <li>The agent asks you (or the AI operator) when it gets stuck</li>
+                  <li>Best for benchmarks and systematic teaching</li>
+                </ul>
+              </button>
+            </div>
+            <div v-if="wizardStepTouched.playMode" class="setup-wizard-choice-notice" role="status">
+              <i class="bi bi-check-circle-fill setup-wizard-choice-notice-icon" aria-hidden="true"></i>
+              <div class="setup-wizard-choice-notice-body">
+                <div class="setup-wizard-choice-notice-title">
+                  <strong>{{ companionModeEnabled ? 'Companion' : 'Instruction' }}</strong> — choice saved.
+                </div>
+                <div class="setup-wizard-choice-notice-path">
+                  <span class="setup-wizard-choice-notice-path-lead">To change later:</span>
+                  top panel →
+                  <span class="setup-wizard-choice-notice-chip"><i class="bi bi-signpost-split"></i> COMPANION_MODE</span>
+                  button (Instruction ↔ Companion).
+                </div>
+              </div>
+            </div>
+            <p v-if="wizardTokenError" class="setup-wizard-error">{{ wizardTokenError }}</p>
+          </section>
+        </div>
+
+        <div class="setup-wizard-footer">
+          <button
+            v-if="setupWizardStep > 1"
+            type="button"
+            class="btn btn-outline-accent setup-wizard-nav-btn"
+            @click="wizardBack"
+          >
+            <i class="bi bi-arrow-left me-1"></i> Back
+          </button>
+          <div class="setup-wizard-footer-spacer"></div>
+          <p v-if="!wizardCanContinue && !wizardLaunching" class="setup-wizard-footer-hint mb-0">
+            Select one of the options above to continue.
+          </p>
+          <button
+            type="button"
+            class="btn btn-accent setup-wizard-nav-btn"
+            :disabled="!wizardCanContinue || wizardLaunching"
+            @click="wizardContinue"
+          >
+            <span v-if="wizardLaunching"><i class="bi bi-hourglass-split me-1"></i> Entering...</span>
+            <span v-else-if="setupWizardStep === 4"><i class="bi bi-door-open me-1"></i> Enter the World</span>
+            <span v-else>Continue <i class="bi bi-arrow-right ms-1"></i></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="setupComplete && appLoading" class="app-loading-overlay" role="status" aria-live="polite">
+      <div class="app-loading-card">
+        <img
+          v-if="appLoadingSpriteSrc"
+          :src="appLoadingSpriteSrc"
+          class="app-loading-character"
+          alt="Loading character"
+        />
+        <div class="app-loading-title">Entering the world...</div>
+        <div class="app-loading-text">{{ appLoadingText }}</div>
+        <div class="app-loading-progress-wrap" aria-label="Loading progress">
+          <div class="app-loading-progress-track">
+            <div class="app-loading-progress-fill" :style="{ width: appLoadingProgress + '%' }"></div>
+          </div>
+          <div class="app-loading-progress-text">{{ appLoadingProgress }}%</div>
+        </div>
+      </div>
+    </div>
+    <div v-if="setupComplete" class="world-map-layer" aria-hidden="false">
+      <canvas v-show="!isArcGame" ref="worldCanvasEl" id="world-map-canvas"></canvas>
+      <div v-if="isArcGame" class="arc-play-layer" @click="closeReasoningPanel">
+        <div
+          ref="arcFrameShellEl"
+          class="arc-frame-shell"
+          :class="{ 'arc-frame-shell--hoverable': arcFrameImageSrc }"
+          @pointermove="onArcFramePointerMove"
+          @pointerleave="onArcFramePointerLeave"
+          @click.stop="onArcFrameClick"
+        >
+          <img
+            v-if="arcFrameImageSrc"
+            :src="arcFrameImageSrc"
+            class="arc-frame-image"
+            alt="ARC-AGI-3 game frame"
+          />
+          <canvas
+            v-if="arcFrameImageSrc"
+            ref="arcFrameCanvasEl"
+            class="arc-frame-overlay"
+            aria-hidden="true"
+          ></canvas>
+          <div v-else class="arc-frame-placeholder">ARC frame unavailable</div>
+        </div>
+      </div>
+      <div
+        v-if="instructionPlayNoticeVisible && !companionModeEnabled"
+        class="instruction-play-notice"
+        :class="{ 'instruction-play-notice--fading': instructionPlayNoticeFading }"
+        role="status"
+        aria-live="polite"
+      >
+        <div class="instruction-play-notice-title">{{ instructionPlayNoticeSteps }} autonomous steps</div>
+        <div class="instruction-play-notice-text">
+          The agent will run {{ instructionPlayNoticeSteps }} steps on its own — then you can edit the instruction or press Play again
+        </div>
+      </div>
+      <div class="companion-top-stack">
+      <div
+        class="companion-top-cluster"
+        :class="{
+          'companion-top-cluster--with-gauge': companionModeEnabled && companionStepBadge.active,
+          'companion-top-cluster--with-instruction-timer': !companionModeEnabled && instructionStepBadge.active,
+        }"
+      >
+      <div
+        v-if="companionModeEnabled && companionStepBadge.active"
+        class="companion-step-gauge"
+        role="status"
+        :aria-label="'Step ' + companionStepBadge.done + ' of ' + companionStepBadge.limit"
+        :title="(companionStepBadge.taskTitle ? companionStepBadge.taskTitle + ' — ' : '') + 'step ' + companionStepBadge.done + ' of ' + companionStepBadge.limit"
+      >
+        <svg class="companion-step-gauge-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="companion-step-gauge-track" cx="60" cy="60" r="52"></circle>
+          <circle
+            class="companion-step-gauge-fill"
+            cx="60"
+            cy="60"
+            r="52"
+            :style="{ strokeDasharray: companionStepGaugeCircumference, strokeDashoffset: companionStepGaugeOffset }"
+          ></circle>
+        </svg>
+        <div class="companion-step-gauge-body">
+          <span class="companion-step-gauge-value">{{ companionStepBadge.done }}</span>
+          <span class="companion-step-gauge-limit">/ {{ companionStepBadge.limit }}</span>
+          <span class="companion-step-gauge-label">steps</span>
+        </div>
+        <span v-if="companionStepBadge.taskTotal" class="companion-step-gauge-task">
+          {{ isArcGame ? ('Level-' + companionStepBadge.taskIndex) : ('Level ' + companionStepBadge.taskIndex + '/' + companionStepBadge.taskTotal) }}
+        </span>
+      </div>
+      <div
+        v-if="!companionModeEnabled && instructionStepBadge.active"
+        class="instruction-step-timer"
+        role="status"
+        :aria-label="'Step ' + instructionStepBadge.done + ' of ' + instructionStepBadge.limit"
+        :title="'Step ' + instructionStepBadge.done + ' of ' + instructionStepBadge.limit"
+      >
+        <svg class="instruction-step-timer-ring" viewBox="0 0 48 48" aria-hidden="true">
+          <circle class="instruction-step-timer-track" cx="24" cy="24" r="20"></circle>
+          <circle
+            class="instruction-step-timer-fill"
+            cx="24"
+            cy="24"
+            r="20"
+            :style="{ strokeDasharray: instructionStepTimerCircumference, strokeDashoffset: instructionStepTimerOffset }"
+          ></circle>
+        </svg>
+        <div class="instruction-step-timer-body">
+          <span class="instruction-step-timer-value">{{ instructionStepBadge.done }}</span>
+          <span class="instruction-step-timer-limit">/ {{ instructionStepBadge.limit }}</span>
+        </div>
+      </div>
+      <div
+        class="agent-instruction-bar"
+        :class="{
+          'agent-instruction-bar--companion': companionModeEnabled,
+          'agent-instruction-bar--locked': agentInstructionLocked,
+          'agent-instruction-bar--neon-alert': !companionModeEnabled && !agentInstructionReady && !agentInstructionLocked,
+        }"
+        role="region"
+        aria-label="Agent controls"
+      >
+        <div class="agent-instruction-row">
+          <input
+            v-if="!companionModeEnabled"
+            id="agentInstructionInput"
+            v-model="agentGoal"
+            type="text"
+            class="form-control form-control-dark agent-instruction-input"
+            :placeholder="agentInstructionPlaceholder"
+            :disabled="agentInstructionLocked"
+            :title="agentInstructionLocked ? 'Pause or wait to edit' : agentInstructionPlaceholder"
+            autocomplete="off"
+            spellcheck="true"
+            @keydown.enter.prevent="onAgentInstructionEnter"
+          />
+          <label
+            v-if="!companionModeEnabled"
+            class="agent-step-control"
+            title="Autonomous steps per Play"
+            aria-label="Autonomous steps per Play"
+          >
+            <span class="agent-step-icon" aria-hidden="true"></span>
+            <input
+              v-model.number="agentStepsPerClick"
+              type="number"
+              class="agent-step-input"
+              min="1"
+              :max="agentStepsRangeMax"
+              step="1"
+              aria-label="Autonomous steps per Play"
+              :disabled="agentInstructionLocked"
+              @change="agentStepsPerClick = clampAgentStepsPerClick(agentStepsPerClick)"
+            />
+          </label>
+          <div class="topbar-segment topbar-segment--inline" role="group" aria-label="Agent controls">
+            <button
+              type="button"
+              class="topbar-segment-btn topbar-play-btn"
+              :class="{ 'is-stopping': agentWorking }"
+              @click="agentPlayToggle"
+              :disabled="companionModeEnabled || !agentInstructionReady"
+              :title="companionModeEnabled ? 'Disabled in companion mode — use START on the strip' : (!agentInstructionReady ? 'Enter instruction first' : (agentWorking ? 'Stop' : `Play (${clampAgentStepsPerClick(agentStepsPerClick)} steps)`))"
+              :aria-label="agentWorking ? 'Stop' : 'Play'"
+            >
+              <i class="bi" :class="agentWorking ? 'bi-stop-fill' : 'bi-play-fill'"></i>
+            </button>
+            <button
+              type="button"
+              class="topbar-segment-btn"
+              @click="reset"
+              title="Reset"
+              aria-label="Reset"
+            >
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+            <button
+              type="button"
+              class="topbar-segment-btn"
+              :class="{ 'is-active-record': saveTrajectory }"
+              @click="saveTrajectory = !saveTrajectory; toggleSaveTrajectory()"
+              :title="saveTrajectory ? 'Recording trajectory (click to stop)' : 'Record trajectory'"
+              :aria-label="saveTrajectory ? 'Recording' : 'Record trajectory'"
+            >
+              <i class="bi bi-record-circle"></i>
+            </button>
+          </div>
+        </div>
+        <span v-if="!companionModeEnabled && agentInstructionLocked" class="agent-instruction-hint">Pause or wait to edit</span>
+      </div>
+      </div>
+      <div
+        v-if="agentStatusBannerVisible"
+        class="agent-status-banner"
+        :class="{ 'agent-status-banner--stopping': agentStopping }"
+        role="status"
+        aria-live="polite"
+      >
+        <template v-if="agentStopping">
+          <span class="agent-status-banner-spinner" aria-hidden="true"></span>
+          <span class="agent-status-banner-text">Stopping mission…</span>
+        </template>
+        <template v-else>
+          <span class="agent-status-banner-dots" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+          <span class="agent-status-banner-text">Agent is thinking…</span>
+        </template>
+      </div>
+      </div>
+      <div v-if="!isArcGame" class="world-map-toolbar">
+        <button
+          type="button"
+          class="world-map-tool-btn"
+          :class="{ 'world-map-tool-btn--alert': !mapFollowingAgent }"
+          title="Follow agent"
+          aria-label="Follow agent"
+          @click="recenterWorldMap"
+        >
+          <i class="bi bi-crosshair"></i>
+        </button>
+      </div>
+      <button
+        v-if="operatorPanelCollapsed && operatorPanelMessageAlert"
+        type="button"
+        class="messages-alert-fab"
+        title="New message — open messages panel"
+        aria-label="New message, open messages panel"
+        @click="openOperatorPanel"
+      >
+        <i class="bi bi-chat-dots-fill"></i>
+        <span class="messages-alert-fab-dot" aria-hidden="true"></span>
+      </button>
+      <div class="human-leaderboard-plaque-anchor">
+        <div
+          v-if="achievementToast"
+          class="achievement-toast"
+          role="status"
+          @click="dismissAchievementToast"
+        >
+          <i class="bi bi-lightbulb-fill me-2"></i>
+          <span>{{ achievementToast.message }}</span>
+        </div>
+        <button
+          v-if="companionModeEnabled || isArcGame"
+          type="button"
+          class="human-leaderboard-plaque"
+          aria-label="View leaderboard"
+          @click="openHumanLeaderboardModal"
+        >
+          <span class="human-leaderboard-plaque-tooltip" role="tooltip">View leaderboard</span>
+          <i class="bi bi-trophy-fill human-leaderboard-plaque-icon" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="world-reasoning-anchor">
+        <div class="world-reasoning-anchor-main">
+        <div class="agent-state-btn-col" role="group" aria-label="Agent reasoning, memory, and observation">
+          <button
+            type="button"
+            class="agent-state-btn"
+            :class="{
+              'agent-state-btn--live': reasoningToggleLive && !reasoningNeonAlert,
+              'agent-state-btn--neon-alert': reasoningNeonAlert,
+              'agent-state-btn--active': !reasoningPanelCollapsed,
+            }"
+            :aria-label="reasoningPanelCollapsed ? 'Показать размышления агента' : 'Скрыть размышления агента'"
+            :title="reasoningPanelCollapsed ? 'Размышления агента' : 'Скрыть размышления'"
+            @click="toggleReasoningPanel"
+          >
+            <span
+              class="reasoning-toggle-bulb"
+              :class="{ 'reasoning-toggle-bulb--live': reasoningToggleLive && !reasoningNeonAlert }"
+              aria-hidden="true"
+            >
+              <svg class="reasoning-toggle-bulb-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle class="reasoning-toggle-bulb-glow" cx="12" cy="10" r="7.5"></circle>
+                <path class="reasoning-toggle-bulb-glass" d="M12 4.5c-2.9 0-5.25 2.35-5.25 5.25 0 1.95 1.08 3.66 2.67 4.56.48.27.83.74.95 1.26l.18.8h2.9l.18-.8c.12-.52.47-.99.95-1.26 1.59-.9 2.67-2.61 2.67-4.56 0-2.9-2.35-5.25-5.25-5.25Z"></path>
+                <rect class="reasoning-toggle-bulb-cap" x="9.25" y="16.8" width="5.5" height="1.45" rx="0.7"></rect>
+                <rect class="reasoning-toggle-bulb-cap" x="9.55" y="18.8" width="4.9" height="1.35" rx="0.65"></rect>
+                <rect class="reasoning-toggle-bulb-cap" x="10.05" y="20.55" width="3.9" height="1.1" rx="0.55"></rect>
+                <path class="reasoning-toggle-bulb-filament" d="M10.5 10.5c.6-.9 2.4-.9 3 0"></path>
+                <path class="reasoning-toggle-bulb-ray" d="M12 1.9v1.9"></path>
+                <path class="reasoning-toggle-bulb-ray" d="m18.9 4.8-1.35 1.35"></path>
+                <path class="reasoning-toggle-bulb-ray" d="M22.1 10h-1.9"></path>
+                <path class="reasoning-toggle-bulb-ray" d="m5.1 4.8 1.35 1.35"></path>
+                <path class="reasoning-toggle-bulb-ray" d="M1.9 10h1.9"></path>
+              </svg>
+            </span>
+          </button>
+          <button
+            type="button"
+            class="agent-state-btn"
+            :class="{ 'agent-state-btn--neon-alert': knowledgeNeonAlert }"
+            title="Память агента (knowledge base)"
+            aria-label="Open agent knowledge base"
+            @click="openKnowledgeModal"
+          >
+            <span class="knowledge-icon knowledge-icon--toggle" aria-hidden="true"></span>
+          </button>
+          <button
+            type="button"
+            class="agent-state-btn"
+            title="Наблюдение агента (карта + инвентарь)"
+            aria-label="Open agent observation"
+            @click="openObservationModal"
+          >
+            <i class="bi bi-map" aria-hidden="true"></i>
+          </button>
+          <button
+            v-if="featureFlags.agent_prompt_debug"
+            type="button"
+            class="agent-state-btn"
+            title="Show last agent prompt"
+            aria-label="Show last agent prompt"
+            @click="openAgentPromptModal"
+          >
+            <i class="bi bi-chat-left-text" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div
+          v-show="!reasoningPanelCollapsed"
+          class="world-reasoning-panel"
+          :class="'world-reasoning-panel--' + reasoningPanelSize"
+        >
+          <div class="agent-reasoning-col">
+            <div class="obs-title">Agent reasoning</div>
+            <div class="agent-obs-panel">
+              <div v-if="agentReasoningThinking" class="reasoning-thinking" role="status" aria-live="polite">
+                <i class="bi bi-lightbulb reasoning-thinking-bulb" aria-hidden="true"></i>
+                <span class="reasoning-thinking-label">Thinking</span>
+                <span class="reasoning-thinking-dots" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </span>
+              </div>
+              <template v-else>{{ agentReasoningDisplay }}</template>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div v-if="worldHud && !isArcGame" class="world-bottom-bar">
+        <div class="world-inventory" aria-label="Inventory">
+          <div class="world-inventory-grid">
+            <div
+              v-for="slot in inventorySlots"
+              :key="slot.key"
+              class="world-inv-slot"
+              :class="{ 'world-inv-slot--filled': slot.hasItem }"
+              :title="formatInventoryKey(slot.key)"
+            >
+              <img v-if="slot.icon" :src="slot.icon" alt="" class="world-inv-slot-icon" />
+              <span v-if="slot.hasItem" class="world-inv-slot-count">{{ slot.count }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="world-bottom-bar-center" aria-hidden="true"></div>
+        <div class="world-hud">
+          <div class="world-hud-stats">
+            <div class="world-hud-stat" title="Health">
+              <img :src="worldStatIconSrc('health')" alt="" class="world-hud-stat-icon" />
+              <span class="world-hud-stat-value">{{ worldHud.stats.health }}</span>
+            </div>
+            <div class="world-hud-stat" title="Food">
+              <img :src="worldStatIconSrc('food')" alt="" class="world-hud-stat-icon" />
+              <span class="world-hud-stat-value">{{ worldHud.stats.food }}</span>
+            </div>
+            <div class="world-hud-stat" title="Drink">
+              <img :src="worldStatIconSrc('drink')" alt="" class="world-hud-stat-icon" />
+              <span class="world-hud-stat-value">{{ worldHud.stats.drink }}</span>
+            </div>
+            <div class="world-hud-stat" title="Energy">
+              <img :src="worldStatIconSrc('energy')" alt="" class="world-hud-stat-icon" />
+              <span class="world-hud-stat-value">{{ worldHud.stats.energy }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        v-if="selectedTileInfo"
+        class="tile-info-card"
+        :class="{ 'tile-info-card--fading': tileInfoFading }"
+        :style="tileInfoStyle"
+        role="dialog"
+        aria-label="Tile information"
+      >
+        <button
+          type="button"
+          class="tile-info-close"
+          title="Close"
+          aria-label="Close tile information"
+          @click="closeTileInfo"
+        >
+          <i class="bi bi-x-lg"></i>
+        </button>
+        <div class="tile-info-title">{{ selectedTileInfo.name }}</div>
+        <div class="tile-info-coords">{{ selectedTileInfo.isArc ? 'coord' : 'tile' }} [{{ selectedTileInfo.x }}, {{ selectedTileInfo.y }}]</div>
+        <div class="tile-info-desc">{{ selectedTileInfo.desc }}</div>
+        <div class="tile-info-tags">
+          <template v-if="selectedTileInfo.isArc">
+            <span
+              v-for="(control, idx) in selectedTileInfo.arcControls"
+              :key="'arc-ctrl-' + idx"
+              class="tile-info-tag tile-info-tag--arc-action"
+            >
+              <i class="bi bi-controller"></i>
+              {{ control }}
+            </span>
+          </template>
+          <span v-else-if="selectedTileInfo.isCreature" class="tile-info-tag tile-info-tag--no">
+            <i class="bi bi-bug"></i>
+            Creature
+          </span>
+          <span v-else class="tile-info-tag" :class="selectedTileInfo.mineable ? 'tile-info-tag--yes' : 'tile-info-tag--no'">
+            <i :class="selectedTileInfo.mineable ? 'bi bi-check-lg' : 'bi bi-dash-lg'"></i>
+            {{ selectedTileInfo.mineable ? 'Can be mined' : 'Cannot be mined' }}
+          </span>
+          <span v-if="selectedTileInfo.danger" class="tile-info-tag tile-info-tag--danger">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Dangerous
+          </span>
+        </div>
+      </div>
+    </div>
+    <div v-if="setupComplete" class="game-panel game-panel--overlay">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <h1
+            class="h5 mb-0 text-theme-heading world-mode-title world-mode-title--clickable"
+            role="button"
+            tabindex="0"
+            :title="'World mode: ' + worldModeLabel + ' — click to change'"
+            @click="openWorldModeModal"
+            @keydown.enter.prevent="openWorldModeModal"
+            @keydown.space.prevent="openWorldModeModal"
+          >
+            <img
+              :src="worldModeAgentIconSrc"
+              class="world-mode-agent-icon"
+              :alt="worldModeLabel"
+              :title="worldModeLabel"
+            />
+            <span class="world-mode-title-text">
+              <span class="world-mode-title-name">TalkingHeads</span>
+              <span class="world-mode-title-sub">{{ worldModeLabel }}</span>
+            </span>
+          </h1>
+          <span class="d-flex align-items-center" :title="wsStatus">
+            <span :class="['status-dot', wsStatus]"></span>
+          </span>
+          <button
+            class="btn btn-sm btn-companion-mode"
+            :class="{ active: companionModeEnabled || isArcGame }"
+            @click="toggleCompanionMode"
+            :disabled="agentWorking || isArcGame"
+            :title="isArcGame ? 'ARC-AGI-3 always uses Companion mode' : undefined"
+          >
+            <i class="bi bi-signpost-split me-1"></i>{{ (companionModeEnabled || isArcGame) ? 'COMPANION_MODE ON' : 'COMPANION_MODE' }}
+          </button>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button
+            id="settingsGearBtn"
+            class="btn btn-outline-accent btn-sm settings-gear-btn"
+            :class="{ 'settings-gear-btn--placeholder': apiKeyAlertActive }"
+            type="button"
+            @click="openSettingsModal"
+            title="Open settings"
+            :tabindex="apiKeyAlertActive ? -1 : 0"
+            :aria-hidden="apiKeyAlertActive ? 'true' : 'false'"
+          >
+            <i class="bi bi-gear-fill"></i>
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-panel-toggle"
+            :class="{ active: !statsPanelCollapsed, 'btn-panel-toggle--alert': statsPanelNeonAlert && statsPanelCollapsed }"
+            @click="toggleStatsPanel"
+            :title="statsPanelCollapsed ? 'Show session dashboard' : 'Hide session dashboard'"
+            :aria-pressed="!statsPanelCollapsed"
+            aria-label="Toggle session dashboard"
+          >
+            <i class="bi bi-layout-sidebar-reverse"></i>
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-panel-toggle"
+            :class="{ active: !operatorPanelCollapsed }"
+            @click="toggleOperatorPanel"
+            :title="operatorPanelCollapsed ? 'Show messages panel' : 'Hide messages panel'"
+            :aria-pressed="!operatorPanelCollapsed"
+            aria-label="Toggle messages panel"
+          >
+            <i class="bi bi-layout-sidebar-inset-reverse"></i>
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="companionModeEnabled"
+        class="companion-strip"
+        :class="{ 'companion-strip--running': companionResearchActive || companionStripAgentRunning }"
+      >
+        <div class="companion-strip-controls">
+          <div class="companion-strip-settings-wrap">
+            <button
+              type="button"
+              class="companion-strip-icon-btn companion-strip-icon-btn--gear"
+              :class="{ 'is-open': companionStripSettingsOpen }"
+              @click="toggleCompanionStripSettings"
+              :title="isArcGame ? 'Agent settings' : 'Research settings'"
+              :aria-label="isArcGame ? 'Agent settings' : 'Research settings'"
+            >
+              <i class="bi bi-sliders"></i>
+            </button>
+          </div>
+          <button
+            v-if="!isArcGame"
+            type="button"
+            class="companion-strip-icon-btn companion-strip-icon-btn--play"
+            :class="{
+              'is-stopping': companionResearchActive,
+              'is-start-highlight': companionPlayHighlightVisible,
+            }"
+            @click="companionResearchActive ? stopCompanionResearch() : startCompanionResearch()"
+            :disabled="agentWorking && !companionResearchActive"
+            :title="companionResearchActive ? (companionBenchStopping ? 'Stopping...' : 'Stop research') : 'Start research'"
+            :aria-label="companionResearchActive ? 'Stop research' : 'Start research'"
+          >
+            <i class="bi" :class="companionResearchActive ? 'bi-stop-fill' : 'bi-play-fill'"></i>
+          </button>
+          <button
+            v-else
+            type="button"
+            class="companion-strip-icon-btn companion-strip-icon-btn--play"
+            :class="{
+              'is-stopping': agentMissionActive,
+              'is-start-highlight': companionPlayHighlightVisible,
+            }"
+            @click="agentPlayToggle"
+            :disabled="agentStopping"
+            :title="agentMissionActive ? (agentStopping ? 'Stopping...' : 'Stop agent') : `Start agent (${clampAgentStepsPerClick(companionBenchMaxTicksPerTask)} steps)`"
+            :aria-label="agentMissionActive ? 'Stop agent' : 'Start agent'"
+          >
+            <i class="bi" :class="agentMissionActive ? 'bi-stop-fill' : 'bi-play-fill'"></i>
+          </button>
+        </div>
+        <div class="companion-strip-track">
+          <div class="companion-strip-line" aria-hidden="true">
+            <span class="companion-strip-line-fill" :style="{ width: companionStripFillPct + '%' }"></span>
+          </div>
+          <div
+            v-for="node in companionStripNodes"
+            :key="'strip-' + node.key"
+            class="companion-strip-node"
+            :class="node.stateClass"
+            tabindex="0"
+            @mouseenter="showCompanionTip($event, node)"
+            @mouseleave="hideCompanionTip"
+            @focus="showCompanionTip($event, node)"
+            @blur="hideCompanionTip"
+          >
+            <span class="companion-strip-node-dot">
+              <span v-if="node.levelNumber != null" class="companion-strip-node-level">{{ node.levelNumber }}</span>
+              <img v-else-if="node.icon" :src="node.icon" class="companion-strip-node-img" :alt="node.title" @error="onCompanionIconError(node.iconKey)" />
+              <i v-else class="bi companion-strip-node-bi" :class="node.biClass" aria-hidden="true"></i>
+            </span>
+          </div>
+        </div>
+        <div class="companion-strip-meta">
+          <span
+            v-if="!companionResearchActive"
+            class="companion-strip-status"
+          >{{ companionBenchResearchStatusText || (campaignState?.is_finished ? "All levels done" : "Ready") }}</span>
+          <span class="companion-strip-count">{{ campaignState?.completed_count || 0 }}/{{ campaignState?.total_count || companionStripNodes.length || 0 }}</span>
+        </div>
+        <button
+          v-if="!isArcGame"
+          type="button"
+          class="companion-strip-test-btn"
+          @click="openCompanionTestModal"
+          :disabled="!companionBenchResearchComplete && !companionBenchStatus?.has_own_knowledge && !campaignState?.is_finished"
+          title="Test the agent on a level"
+        >
+          <i class="bi bi-clipboard-check"></i>
+          <span>Test</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="setupComplete" class="session-map-spacer" aria-hidden="true"></div>
+
+    <div
+      v-if="setupComplete"
+      class="stats-panel-shell"
+      :class="{ 'stats-panel-shell--collapsed': statsPanelCollapsed }"
+      :style="statsPanelStyle"
+    >
+      <div
+        v-if="!statsPanelCollapsed"
+        class="panel-resize-handle panel-resize-handle--left"
+        title="Потяните, чтобы изменить ширину"
+        @mousedown.prevent="startStatsPanelResize"
+      ></div>
+      <button
+        v-if="!statsPanelCollapsed"
+        type="button"
+        class="stats-panel-toggle"
+        title="Hide session stats"
+        @click="toggleStatsPanel"
+      >
+        <i class="bi bi-chevron-right"></i>
+      </button>
+      <div v-show="!statsPanelCollapsed" class="oracle-panel stats-panel">
+      <div class="stats-panel-content">
+      <div class="p-3 border-bottom border-secondary panel-accent-header">
+        <h2 class="h6 mb-0 text-theme-heading">
+          <i class="bi bi-bar-chart-line me-2"></i>Session &amp; trajectory stats
+        </h2>
+        <p class="small text-muted mb-0 mt-1">
+          {{ isArcGame ? 'ARC actions, questions, and current trajectory.' : 'Operator experts and current trajectory.' }}
+        </p>
+      </div>
+      <div class="p-3">
+        <div v-if="!isArcGame" class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
+          <div class="small text-muted">Experts load &amp; failures</div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="chart-font-controls">
+              <label class="chart-font-control" title="Axis labels">
+                <i class="bi bi-text-left"></i>
+                <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.stats.axis" @input="onChartFontChange('stats', 'axis', $event)" />
+                <span>{{ chartFontSizes.stats.axis }}</span>
+              </label>
+              <label class="chart-font-control" title="Legend">
+                <i class="bi bi-fonts"></i>
+                <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.stats.legend" @input="onChartFontChange('stats', 'legend', $event)" />
+                <span>{{ chartFontSizes.stats.legend }}</span>
+              </label>
+            </div>
+            <button class="btn btn-outline-accent btn-sm py-0 px-2" style="font-size: 0.7rem;" type="button" @click="refreshStatistics">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+          </div>
+        </div>
+        <div v-if="!isArcGame && oracleStats">
+          <div class="mb-2">
+            <span class="stat-badge">
+              <strong>Total</strong>:
+              {{ oracleStats.total?.messages || 0 }} calls,
+              {{ oracleStats.total?.failures || 0 }} failures
+            </span>
+          </div>
+          <div style="height: 130px;">
+            <canvas ref="statsChartEl"></canvas>
+          </div>
+        </div>
+        <div v-else-if="!isArcGame && oracleStatsError" class="text-danger small mb-2">{{ oracleStatsError }}</div>
+        <div v-else-if="!isArcGame" class="text-muted small mb-2">No expert statistics yet.</div>
+
+        <div v-if="!isArcGame" class="mt-3">
+          <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-1">
+            <div class="small text-muted">
+              Campaign benchmark · {{ worldModeLabel }}
+              <span v-if="benchmarkSinceApplied"> · с {{ benchmarkSinceApplied }}</span>
+            </div>
+            <div class="benchmark-inline-controls">
+              <label class="benchmark-since-label benchmark-since-label--compact">
+                <span class="benchmark-since-text">Актуальность с</span>
+                <input
+                  type="date"
+                  class="form-control form-control-sm benchmark-since-input"
+                  v-model="benchmarkSince"
+                  @change="onBenchmarkSinceChange"
+                />
+              </label>
+              <button
+                v-if="benchmarkSince"
+                class="btn btn-outline-secondary btn-sm py-0 px-2"
+                type="button"
+                title="Сбросить фильтр по дате"
+                @click="clearBenchmarkSince"
+              >
+                Сбросить
+              </button>
+              <span class="badge bg-secondary" style="font-size: 0.65rem;">Exploration runs: {{ campaignBenchmarkRuns }}</span>
+            </div>
+          </div>
+          <div v-if="campaignBenchmarkError" class="text-danger small">{{ campaignBenchmarkError }}</div>
+          <div v-else-if="campaignBenchmarkCompact.length === 0" class="text-muted small">No Exploration campaign runs yet for {{ worldModeLabel }}.</div>
+          <div v-else class="leaderboard-table-wrap benchmark-compact-wrap">
+            <table class="table table-theme table-sm leaderboard-table benchmark-compact-table mb-0">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Solved</th>
+                  <th>Max Item</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in campaignBenchmarkCompact" :key="'cb-' + idx + '-' + row.model">
+                  <td :title="row.model">{{ row.model_short }}</td>
+                  <td>{{ row.solved_display }}</td>
+                  <td>
+                    <span class="benchmark-item-cell" :title="row.max_item_label">
+                      <img v-if="row.max_item_icon" :src="row.max_item_icon" class="benchmark-item-icon" :alt="row.max_item_label" />
+                      <span v-else class="benchmark-item-fallback">{{ row.max_item_label }}</span>
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <hr v-if="!isArcGame" class="border-secondary my-3" />
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <div class="small text-muted">Current trajectory (this episode)</div>
+            <span v-if="currentTrajStats && currentTrajStats.active" class="badge bg-secondary text-uppercase" style="font-size: 0.65rem;">Live</span>
+          </div>
+          <div v-if="currentTrajStats && currentTrajStats.active">
+            <div class="mb-2">
+              <span class="stat-badge">
+                <strong>Steps</strong>: {{ currentTrajStats.steps }} ·
+                <strong>Actions</strong>: {{ currentTrajStats.actions }} ·
+                <strong>Questions</strong>: {{ currentTrajStats.questions }}
+              </span>
+            </div>
+            <div class="mb-1 small text-muted">Questions vs actions in this episode</div>
+            <div style="height: 110px;"><canvas ref="currentQAChartEl"></canvas></div>
+            <div class="d-flex justify-content-between align-items-center mt-2 mb-1 gap-2 flex-wrap">
+              <div class="small text-muted">Actions and answer length</div>
+              <label class="chart-font-control" title="Axis labels">
+                <i class="bi bi-text-left"></i>
+                <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.currentLen.axis" @input="onChartFontChange('currentLen', 'axis', $event)" />
+                <span>{{ chartFontSizes.currentLen.axis }}</span>
+              </label>
+            </div>
+            <div style="height: 110px;"><canvas ref="currentLenChartEl"></canvas></div>
+          </div>
+          <div v-else class="small text-muted">
+            No trajectory stats yet. Turn on <strong>Record trajectory</strong> and let the agent run.
+          </div>
+        </div>
+
+        <a href="./trajectory_dashboard.html" target="_blank" class="btn btn-outline-accent btn-sm mt-3 w-100">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Open full dashboard
+        </a>
+      </div>
+      </div>
+      </div>
+    </div>
+
+    <div v-if="setupComplete" v-show="!operatorPanelCollapsed" class="operator-panel-shell" :style="operatorPanelStyle">
+      <div
+        class="panel-resize-handle panel-resize-handle--left"
+        title="Потяните, чтобы изменить ширину"
+        @mousedown.prevent="startOperatorPanelResize"
+      ></div>
+    <div class="oracle-panel" :class="{ 'oracle-panel--message-glow': operatorPanelMessageGlow }">
+      <div class="p-3 border-bottom border-secondary panel-accent-header">
+        <div>
+          <h2 class="operator-panel-title mb-0 text-theme-heading">
+            <i class="bi bi-chat-square-text me-2"></i>{{ operatorPanelTitle }}
+          </h2>
+          <p v-if="operatorPanelSubtitle" class="small text-muted mb-0 mt-1">{{ operatorPanelSubtitle }}</p>
+        </div>
+      </div>
+      <div ref="logEl" class="oracle-log">
+        <div v-for="(m, i) in messages" :key="i" class="oracle-msg" :class="{ error: logMessageIsError(m), pending: m.pending, 'agent-action': m.kind === 'agent_action', 'oracle-msg--author': showOperatorAuthorIdentity(m), 'oracle-msg--human': showHumanOperatorIdentity(m), 'oracle-msg--ai': showAiOperatorIdentity(m) }">
+          <div v-if="showOperatorAuthorIdentity(m)" class="oracle-msg-author">
+            <img :src="operatorAuthorAvatarSrc(m)" :alt="operatorAuthorDisplayName(m)" class="oracle-msg-avatar" />
+            <span class="oracle-msg-nickname">{{ operatorAuthorDisplayName(m) }}</span>
+          </div>
+          <div class="q" v-if="m.kind === 'oracle' || m.kind === 'agent_message'"><span v-if="logMessageHeader(m)">{{ logMessageHeader(m) }}</span> {{ m.question }}</div>
+          <div class="q" v-else-if="m.kind === 'human_agent'"><span v-if="!showHumanOperatorIdentity(m)">You → agent: </span>{{ m.question }}</div>
+          <div class="q" v-else-if="m.kind === 'system'"><i class="bi bi-info-circle me-1"></i>{{ m.answer }}</div>
+          <div class="q" v-else-if="m.kind === 'operator_notice'"><i class="bi bi-megaphone me-1"></i><span v-if="m.question" class="text-muted me-1">{{ m.question }}</span>To agent: {{ m.answer }}</div>
+          <div class="q" v-else-if="m.kind === 'agent_action'"><i class="bi bi-robot me-1"></i>Agent acts: {{ m.action }}</div>
+          <div class="a" v-if="m.pending">
+            <span class="typing-dots"><span></span><span></span><span></span></span>
+            <span class="text-muted ms-2">Generating answer...</span>
+            <span class="response-time ms-2" v-if="m.sentAt">{{ elapsedSeconds(m.sentAt) }}s</span>
+          </div>
+          <div class="a" v-else-if="m.kind !== 'agent_action' && m.kind !== 'system' && m.kind !== 'operator_notice'">{{ formatLogAnswer(m) }}</div>
+          <div v-if="isArcGame && (m.kind === 'agent_action' || m.kind === 'agent_message') && logMessageReasoning(m)" class="message-reasoning" :class="{ 'message-reasoning--open': m.reasoningOpen }">
+            <button
+              type="button"
+              class="message-reasoning-toggle"
+              :aria-expanded="m.reasoningOpen ? 'true' : 'false'"
+              title="Show or hide agent reasoning"
+              @click="toggleMessageReasoning(m)"
+            >
+              <i :class="m.reasoningOpen ? 'bi bi-chevron-down' : 'bi bi-chevron-right'" aria-hidden="true"></i>
+              <i class="bi bi-lightbulb" aria-hidden="true"></i>
+              <span>Reasoning</span>
+            </button>
+            <div v-if="m.reasoningOpen" class="message-reasoning-body">{{ logMessageReasoning(m) }}</div>
+          </div>
+          <div class="response-time mt-1" v-if="!m.pending && m.responseTimeMs != null"><i class="bi bi-stopwatch me-1"></i>Answered in {{ formatResponseTime(m.responseTimeMs) }}</div>
+        </div>
+        <div v-if="messages.length === 0 && operatorChatExamples.length" class="oracle-chat-examples">
+          <p class="oracle-chat-examples-label">Example</p>
+          <div
+            v-for="(ex, exIdx) in operatorChatExamples"
+            :key="'example-' + exIdx"
+            class="oracle-msg oracle-msg--example"
+            :class="{ 'oracle-msg--example-author': ex.kind === 'author' }"
+          >
+            <div v-if="ex.kind === 'author'" class="oracle-msg-author">
+              <img :src="ex.avatar" :alt="ex.name" class="oracle-msg-avatar" />
+              <span class="oracle-msg-nickname">{{ ex.name }}</span>
+            </div>
+            <div v-else-if="ex.kind === 'agent'" class="q"><i class="bi bi-robot me-1"></i>Agent: {{ ex.text }}</div>
+            <div v-else class="q"><i class="bi bi-person me-1"></i>You: {{ ex.text }}</div>
+            <div v-if="ex.kind === 'author'" class="a">{{ ex.text }}</div>
+          </div>
+        </div>
+        <div v-else-if="messages.length === 0" class="text-muted small d-flex align-items-center">{{ operatorEmptyText }}</div>
+      </div>
+      <div class="oracle-composer" :class="{ 'oracle-composer--inactive': !composerPanelActive }">
+        <div class="oracle-composer-body">
+          <div
+            class="oracle-composer-responder"
+            :class="{ 'oracle-composer-responder--human': composerResponderIsHuman, 'oracle-composer-responder--ai': !composerResponderIsHuman }"
+            :title="composerResponderTooltip"
+          >
+            <div class="oracle-composer-responder-avatar-wrap">
+              <img
+                :src="composerResponderAvatarSrc"
+                :alt="composerResponderDisplayName"
+                class="oracle-composer-responder-avatar"
+              />
+            </div>
+          </div>
+          <div class="oracle-composer-main">
+            <span class="oracle-composer-responder-name">{{ composerResponderDisplayName }}</span>
+            <div class="oracle-composer-input-wrap">
+              <div class="oracle-composer-input-shell">
+                <textarea
+                  v-if="composerPanelActive"
+                  ref="questionInputEl"
+                  v-model="questionInput"
+                  class="form-control form-control-dark oracle-composer-input"
+                  rows="1"
+                  :placeholder="operatorInputPlaceholder"
+                  @input="resizeQuestionInput"
+                  @keydown.enter="onQuestionInputEnter"
+                ></textarea>
+                <div
+                  v-else
+                  class="form-control form-control-dark oracle-composer-input oracle-composer-input--static"
+                  role="status"
+                >
+                  {{ composerInactiveMessage }}
+                </div>
+              </div>
+              <button
+                class="btn btn-outline-secondary oracle-composer-action-btn oracle-composer-clear"
+                type="button"
+                :disabled="!composerPanelActive"
+                @click="clearChat"
+                title="Clear chat and messages cache"
+                aria-label="Clear chat and messages cache"
+              >
+                <svg class="oracle-composer-broom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14.5 4.5L8 13"/>
+                  <path d="M6.5 15.5L4.5 17.5"/>
+                  <path d="M5.5 12.5c0 0 1.6-.8 3-.8s3 .8 3 .8"/>
+                  <path d="M6.5 15c0 0 1.6-.8 3-.8s3 .8 3 .8"/>
+                  <path d="M7.5 17.5c0 0 1.6-.8 3-.8s3 .8 3 .8"/>
+                </svg>
+              </button>
+              <button
+                class="btn btn-accent oracle-composer-action-btn oracle-composer-send"
+                type="button"
+                :disabled="!composerPanelActive"
+                @click="sendOracle"
+              ><i class="bi bi-send"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" id="observationModal" tabindex="-1" aria-labelledby="observationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+      <div class="modal-content modal-dark">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-theme-heading" id="observationModalLabel">
+            <i class="bi bi-map me-2"></i>Agent observation
+          </h5>
+          <button type="button" class="btn-close btn-close-theme" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">
+            {{ isArcTwoImagePrompt ? 'Current ARC two-image observation sent to the agent. The previous and current frames are attached as image inputs when a previous frame exists.' : (isArcGridImagePrompt ? 'Current ARC grid + image observation sent to the agent. The text grid is shown below and the rendered frame is attached as an image input.' : (isArcImagePrompt ? 'Current ARC image observation sent to the agent. The rendered frame is attached as an image input; no ASCII grid is included.' : 'Exact view the agent sees on the current step (OBS window + inventory bar).')) }}
+          </p>
+          <img
+            v-if="agentObservationImageSrc"
+            :src="agentObservationImageSrc"
+            alt="Agent observation render"
+            class="agent-observation-image mb-3"
+          />
+          <pre class="knowledge-modal-body">{{ agentObservationDisplay || "—" }}</pre>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-accent btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="worldModeModal" tabindex="-1" aria-labelledby="worldModeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content modal-dark">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-theme-heading" id="worldModeModalLabel">
+            <i class="bi bi-globe2 me-2"></i>Choose world
+          </h5>
+          <button type="button" class="btn-close btn-close-theme" data-bs-dismiss="modal" aria-label="Close" :disabled="worldModeSwitching"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-3">
+            Switching the world restarts the session: the page reloads and a fresh environment opens.
+          </p>
+          <div class="setup-wizard-realm-section">
+            <h3 class="setup-wizard-realm-heading">Craftax worlds</h3>
+            <div class="setup-wizard-cards setup-wizard-cards--craftax">
+            <button
+              type="button"
+              class="setup-wizard-card"
+              :class="{ 'is-selected': !isArcGame && !exoPlanetEnabled }"
+              :disabled="worldModeSwitching"
+              @click="chooseWorldMode('craftax')"
+            >
+              <img src="./assets/agent-icon-craftax.png" alt="" class="setup-wizard-card-icon" />
+              <div class="setup-wizard-card-title">Craftax</div>
+              <p class="setup-wizard-card-text">A Minecraft-like survival world with crafting, gathering, and exploration.</p>
+              <div class="setup-wizard-capability-badges" aria-label="Supported operator modes">
+                <span
+                  v-for="badge in wizardOperatorBadgesForRealm('craftax')"
+                  :key="'world-craftax-' + badge.key"
+                  class="setup-wizard-capability-badge"
+                  :class="badge.available ? 'is-available' : 'is-unavailable'"
+                  @mouseenter.stop="showWizardCapabilityTip($event, badge.tooltip)"
+                  @mouseleave.stop="hideWizardCapabilityTip"
+                  @click.stop
+                >
+                  <i :class="badge.icon" aria-hidden="true"></i>
+                </span>
+              </div>
+            </button>
+            <button
+              type="button"
+              class="setup-wizard-card"
+              :class="{ 'is-selected': !isArcGame && exoPlanetEnabled }"
+              :disabled="worldModeSwitching"
+              @click="chooseWorldMode('exo-planet')"
+            >
+              <img src="./assets/agent-icon-exo-planet.png" alt="" class="setup-wizard-card-icon" />
+              <div class="setup-wizard-card-title">Exo-Planet</div>
+              <p class="setup-wizard-card-text">An alien world the LLM has never seen before.</p>
+              <div class="setup-wizard-capability-badges" aria-label="Supported operator modes">
+                <span
+                  v-for="badge in wizardOperatorBadgesForRealm('exo-planet')"
+                  :key="'world-exo-' + badge.key"
+                  class="setup-wizard-capability-badge"
+                  :class="badge.available ? 'is-available' : 'is-unavailable'"
+                  @mouseenter.stop="showWizardCapabilityTip($event, badge.tooltip)"
+                  @mouseleave.stop="hideWizardCapabilityTip"
+                  @click.stop
+                >
+                  <i :class="badge.icon" aria-hidden="true"></i>
+                </span>
+              </div>
+            </button>
+            </div>
+          </div>
+          <div class="setup-wizard-realm-section setup-wizard-realm-section--arc">
+            <h3 class="setup-wizard-realm-heading">ARC-AGI-3 games</h3>
+            <div class="setup-wizard-arc-grid" role="list" aria-label="ARC-AGI-3 games">
+              <button
+                v-for="option in arcGameOptions"
+                :key="'world-arc-' + option.id"
+                type="button"
+                role="listitem"
+                class="setup-wizard-arc-tile"
+                :class="{
+                  'is-selected': isArcGame && arcGameId === option.id,
+                  'is-unavailable': !arcGameAvailable(option),
+                }"
+                :disabled="worldModeSwitching || !arcGameAvailable(option)"
+                :title="arcGameAvailable(option) ? '' : 'Local game files missing. Run play_web/scripts/sync-arc-games.sh or restart play-serve.'"
+                @click="chooseWorldMode('arc_agi', option.id)"
+              >
+                <div class="setup-wizard-arc-preview" aria-hidden="true">
+                  <img
+                    v-if="arcGamePreviewVisible(option.id)"
+                    :src="arcGamePreviewSrc(option.id)"
+                    alt=""
+                    class="setup-wizard-arc-preview-image"
+                    @error="onArcGamePreviewError(option.id)"
+                  />
+                  <div v-else class="setup-wizard-arc-preview-placeholder">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                  </div>
+                </div>
+                <div class="setup-wizard-arc-tile-title">{{ option.label || option.id }}</div>
+                <div v-if="!arcGameAvailable(option)" class="setup-wizard-arc-tile-status">Not installed</div>
+                <div class="setup-wizard-capability-badges setup-wizard-capability-badges--compact" aria-label="Supported operator modes">
+                  <span
+                    v-for="badge in wizardOperatorBadgesForArcOption(option)"
+                    :key="'world-arc-' + option.id + '-' + badge.key"
+                    class="setup-wizard-capability-badge"
+                    :class="badge.available ? 'is-available' : 'is-unavailable'"
+                    @mouseenter.stop="showWizardCapabilityTip($event, badge.tooltip)"
+                    @mouseleave.stop="hideWizardCapabilityTip"
+                    @click.stop
+                  >
+                    <i :class="badge.icon" aria-hidden="true"></i>
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div v-if="worldModeSwitching" class="text-center small text-muted mt-3">
+            <span class="spinner-border spinner-border-sm me-2"></span>Restarting environment…
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="agentPromptModal" tabindex="-1" aria-labelledby="agentPromptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-lg-down">
+      <div class="modal-content modal-dark">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-theme-heading" id="agentPromptModalLabel">
+            <i class="bi bi-chat-left-text me-2"></i>Agent prompt
+          </h5>
+          <button type="button" class="btn-close btn-close-theme" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-2">
+            Last <code>system_message</code> and <code>user_message</code> passed to <code>ActiveAgent.chat</code> on this session (refreshes while open).
+          </p>
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <div class="prompt-goal-badge mb-0">
+              <span class="me-1">Session goal:</span>
+              <span>{{ agentPromptGoal || "—" }}</span>
+            </div>
+            <div class="btn-group btn-group-sm prompt-view-toggle" role="group" aria-label="Prompt view mode">
+              <button
+                type="button"
+                class="btn"
+                :class="agentPromptViewMode === 'preview' ? 'btn-accent' : 'btn-outline-accent'"
+                @click="agentPromptViewMode = 'preview'"
+              >
+                <i class="bi bi-eye me-1"></i>Preview
+              </button>
+              <button
+                type="button"
+                class="btn"
+                :class="agentPromptViewMode === 'source' ? 'btn-accent' : 'btn-outline-accent'"
+                @click="agentPromptViewMode = 'source'"
+              >
+                <i class="bi bi-code me-1"></i>Source
+              </button>
+            </div>
+          </div>
+          <div v-if="agentPromptLoading" class="text-muted small">Loading…</div>
+          <div v-else-if="agentPromptError" class="text-danger small">{{ agentPromptError }}</div>
+          <template v-else>
+            <div v-if="isArcGame && featureFlags.arc_prompt_override" class="mb-3">
+              <label class="form-label small text-muted mb-1" for="arcPromptExtraModal">ARC full prompt override</label>
+              <textarea
+                id="arcPromptExtraModal"
+                v-model="arcPromptExtra"
+                class="prompt-modal-field prompt-modal-field--system"
+                spellcheck="true"
+                placeholder="Full user prompt replacement for the next ARC agent tick..."
+                aria-label="Full ARC prompt override"
+              ></textarea>
+              <div class="d-flex gap-2 mt-2 flex-wrap">
+                <button type="button" class="btn btn-outline-accent btn-sm" @click="useCurrentAgentPromptAsArcOverride" :disabled="!agentPromptUser">
+                  <i class="bi bi-pencil-square me-1"></i>Use current prompt
+                </button>
+                <button type="button" class="btn btn-outline-accent btn-sm" @click="saveArcPromptExtra">
+                  <i class="bi bi-save me-1"></i>Save override
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @click="clearArcPromptExtra" :disabled="!arcPromptExtra">
+                  <i class="bi bi-x-circle me-1"></i>Clear
+                </button>
+              </div>
+              <p class="small text-muted mt-2 mb-0">
+                If filled, this text replaces the generated ARC user prompt on subsequent ticks. For image-bearing ARC formats, keep the image marker if the model should receive the frame.
+              </p>
+            </div>
+            <label class="form-label small text-muted mb-1" for="agentPromptSystemView">System message</label>
+            <div
+              v-if="agentPromptViewMode === 'preview'"
+              id="agentPromptSystemViewMd"
+              class="prompt-md-body prompt-md-body--system mb-3"
+              v-html="agentPromptSystemHtml"
+              aria-label="System message sent to the agent"
+            ></div>
+            <textarea
+              v-else
+              id="agentPromptSystemView"
+              class="prompt-modal-field prompt-modal-field--system mb-3"
+              readonly
+              spellcheck="false"
+              tabindex="-1"
+              :value="agentPromptSystem"
+              aria-label="System message sent to the agent"
+            ></textarea>
+            <label class="form-label small text-muted mb-1" for="agentPromptUserView">User message (environment + instructions)</label>
+            <div v-if="agentPromptViewMode === 'preview'" class="prompt-md-layout">
+              <nav
+                v-if="agentPromptUserSections.length"
+                class="prompt-md-nav"
+                aria-label="Prompt sections"
+              >
+                <div class="prompt-md-nav-title">Sections</div>
+                <button
+                  v-for="section in agentPromptUserSections"
+                  :key="section.id"
+                  type="button"
+                  class="prompt-md-nav-link"
+                  :class="'prompt-md-nav-link--level-' + section.level"
+                  @click="scrollAgentPromptToSection(section.id)"
+                >
+                  {{ section.title }}
+                </button>
+              </nav>
+              <div
+                id="agentPromptUserViewMd"
+                class="prompt-md-body prompt-md-body--user"
+                v-html="agentPromptUserHtml"
+                aria-label="User message sent to the agent"
+              ></div>
+            </div>
+            <textarea
+              v-else
+              id="agentPromptUserView"
+              class="prompt-modal-field prompt-modal-field--user"
+              readonly
+              spellcheck="false"
+              tabindex="-1"
+              :value="agentPromptUser"
+              aria-label="User message sent to the agent"
+            ></textarea>
+            <p v-if="!agentPromptHasPrompt" class="small text-muted mt-2 mb-0">
+              No agent tick yet on this session. Run the agent, then open this view again.
+            </p>
+          </template>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-outline-accent btn-sm" @click="fetchAgentPrompt" :disabled="agentPromptLoading">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+          </button>
+          <button type="button" class="btn btn-accent btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="arcScoreModal" tabindex="-1" aria-labelledby="arcScoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+      <div class="modal-content modal-dark">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-theme-heading" id="arcScoreModalLabel">
+            <i class="bi bi-trophy me-2"></i>Operator leaderboard
+          </h5>
+          <button type="button" class="btn-close btn-close-theme" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div v-if="isArcGame && arcScore" class="arc-score-card mb-3">
+            <div>
+              <div class="arc-score-label">Current attempt</div>
+              <div class="arc-score-meta">
+                <strong>{{ arcScore.game_id || arcGameId }}</strong>
+                <span>{{ arcScore.state || "unknown" }}</span>
+                <span>{{ arcScore.elapsed_seconds || 0 }}s</span>
+              </div>
+            </div>
+            <div class="arc-score-value">{{ arcScore.score ?? 0 }}</div>
+            <div class="arc-score-breakdown">
+              <span>Actions {{ arcScore.actions ?? 0 }}</span>
+              <span>Agent {{ arcScore.agent_actions ?? 0 }}</span>
+              <span>Manual {{ arcScore.manual_actions ?? 0 }}</span>
+              <span>Questions {{ arcScore.questions ?? 0 }}</span>
+              <span>Answers {{ arcScore.human_answers ?? 0 }}</span>
+            </div>
+          </div>
+          <div v-else-if="isArcGame" class="small text-muted mb-3">
+            Complete the first level of this ARC game to submit this attempt. You can still view previous scores below.
+          </div>
+          <div v-else class="small text-muted mb-3">
+            Companion runs in {{ worldModeLabel }} are logged on reset or finish. Human operators and
+            <strong>TalkingHeads</strong> (AI oracle, best score across models) appear below.
+          </div>
+
+          <div v-if="isArcGame && arcScore && arcScoreIsFinal && !arcScore.submitted" class="arc-score-submit mb-3">
+            <label class="form-label small mb-1" for="arcPlayerName">Name</label>
+            <div class="input-group">
+              <span class="input-group-text input-group-text-dark">
+                <img :src="playerAvatarSrc" alt="" class="player-avatar-preview player-avatar-preview--inline" />
+              </span>
+              <input
+                id="arcPlayerName"
+                v-model="arcPlayerName"
+                type="text"
+                maxlength="40"
+                class="form-control form-control-dark"
+                placeholder="AAA"
+                @keydown.enter.prevent="submitArcHumanScore"
+              />
+              <button
+                class="btn btn-accent"
+                type="button"
+                :disabled="arcScoreSubmitting"
+                @click="submitArcHumanScore"
+              >
+                <span v-if="arcScoreSubmitting" class="spinner-border spinner-border-sm me-1"></span>
+                Submit
+              </button>
+            </div>
+          </div>
+          <div v-else-if="isArcGame && arcScore?.submitted" class="text-success small mb-3">
+            <i class="bi bi-check-circle-fill me-1"></i>Score submitted.
+          </div>
+          <div v-else-if="isArcGame && arcScore && !arcScoreIsFinal" class="small text-muted mb-3">
+            Submit unlocks after the first ARC level is completed.
+          </div>
+          <div v-if="arcScoreError" class="text-danger small mb-3">{{ arcScoreError }}</div>
+
+          <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+            <div class="small text-muted">Best attempts · {{ isArcGame ? arcGameId : worldModeLabel }}</div>
+            <button class="btn btn-outline-accent btn-sm" type="button" @click="loadHumanLeaderboard">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+          </div>
+          <div v-if="humanLeaderboardRows.length" class="leaderboard-table-wrap arc-leaderboard-table-wrap">
+            <table class="table table-theme table-sm leaderboard-table mb-0">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Player</th>
+                  <template v-if="isArcGame">
+                    <th>Game</th>
+                    <th>Score</th>
+                    <th>Progress</th>
+                    <th>Details</th>
+                  </template>
+                  <template v-else>
+                    <th>Score</th>
+                    <th>Levels</th>
+                    <th>Steps</th>
+                    <th>Q</th>
+                    <th>Per level</th>
+                  </template>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in humanLeaderboardRows"
+                    :key="`${row.rank}-${row.is_ai_operator ? 'ai' : 'human'}-${row.player_name}-${row.finished_at}`"
+                    :class="{ 'leaderboard-row-talkingheads': row.is_ai_operator }">
+                  <td>{{ row.rank }}</td>
+                  <td>
+                    <span class="leaderboard-player-cell"
+                          :title="row.is_ai_operator && row.active_agent_model ? ('Best model: ' + row.active_agent_model) : ''">
+                      <img :src="leaderboardAvatarSrc(row)" alt="" class="leaderboard-player-avatar" />
+                      <span>{{ row.player_name }}</span>
+                      <span v-if="row.is_ai_operator" class="leaderboard-ai-tag">AI</span>
+                    </span>
+                  </td>
+                  <template v-if="isArcGame">
+                    <td>{{ row.game_id }}</td>
+                    <td><strong>{{ row.score }}</strong></td>
+                    <td>{{ humanLeaderboardProgressLabel(row) }}</td>
+                    <td>{{ humanLeaderboardDetailsLabel(row) }}</td>
+                  </template>
+                  <template v-else>
+                    <td><strong>{{ row.score }}</strong></td>
+                    <td>{{ humanLeaderboardLevelsLabel(row) }}</td>
+                    <td>{{ humanLeaderboardStepsLabel(row) }}</td>
+                    <td :title="row.leaderboard_type === 'instruction' ? 'Human answers' : 'Agent questions'">
+                      {{ humanLeaderboardQuestionsLabel(row) }}
+                    </td>
+                    <td class="leaderboard-per-level-cell" :title="humanLeaderboardPerLevelCell(row)">
+                      {{ humanLeaderboardPerLevelCell(row) || "—" }}
+                    </td>
+                  </template>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="small text-muted">No scores yet for {{ isArcGame ? arcGameId : worldModeLabel }}.</div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-accent btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="knowledgeModal" tabindex="-1" aria-labelledby="knowledgeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+      <div class="modal-content modal-dark">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-theme-heading" id="knowledgeModalLabel">
+            <span class="knowledge-icon knowledge-icon--title me-2" aria-hidden="true"></span>Agent knowledge base
+          </h5>
+          <button type="button" class="btn-close btn-close-theme" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">
+            Cross-episode facts from <code>&lt;to_database&gt;</code> (mechanics, recipes, actions — not map coordinates).
+          </p>
+          <div v-if="agentKnowledgeLoading" class="text-muted small">Loading…</div>
+          <pre v-else class="knowledge-modal-body">{{ agentKnowledge || "—" }}</pre>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-outline-accent btn-sm" @click="fetchAgentKnowledge">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+          </button>
+          <button type="button" class="btn btn-accent btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="companionBenchModal" tabindex="-1" aria-labelledby="companionBenchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-xl">
+      <div class="modal-content modal-dark">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-theme-heading" id="companionBenchModalLabel">
+            <i class="bi bi-clipboard-check me-2"></i>Test Agent
+          </h5>
+          <button type="button" class="btn-close btn-close-theme" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <div class="small text-muted">
+              Model: <strong>{{ companionBenchStatus?.model || activeAgentModel || "—" }}</strong>
+              · Mode: <strong>{{ companionBenchStatus?.mode || activeAgentMode || "—" }}</strong>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <button class="btn btn-accent btn-sm" type="button" @click="startCompanionTest" :disabled="companionBenchStarting || companionBenchStatus?.running || companionBenchStopping || !companionBenchTestTaskKey">
+                <i class="bi bi-play-fill me-1"></i>{{ companionBenchInTest && companionBenchStatus?.running ? "Testing..." : "Run test" }}
+              </button>
+              <span v-if="!companionBenchStatus?.running" class="small text-muted">Set options below, then press Run test.</span>
+              <button class="btn btn-danger btn-sm" type="button" @click="stopCompanionBench" :disabled="!companionBenchStatus?.running || companionBenchStopping">
+                <i class="bi bi-stop-fill me-1"></i>{{ companionBenchStopping ? "Stopping..." : "Stop" }}
+              </button>
+            </div>
+          </div>
+          <div class="row g-2 mb-3 companion-bench-settings">
+            <div class="col-12 col-md-4">
+              <label class="form-label text-theme-label small mb-1" for="companionBenchMaxTicks">Max steps per episode</label>
+              <input
+                id="companionBenchMaxTicks"
+                v-model.number="companionBenchMaxTicksPerTask"
+                @input="companionBenchMaxTicksDirty = true"
+                type="number"
+                min="1"
+                step="1"
+                class="form-control form-control-dark form-control-sm"
+                :disabled="companionBenchStatus?.running || companionBenchStopping"
+              />
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label text-theme-label small mb-1" for="companionBenchParallelAgents">Parallel agents</label>
+              <input
+                id="companionBenchParallelAgents"
+                v-model.number="companionBenchParallelAgents"
+                @input="companionBenchParallelAgentsDirty = true"
+                type="number"
+                min="1"
+                max="3"
+                step="1"
+                class="form-control form-control-dark form-control-sm"
+                :disabled="companionBenchStatus?.running || companionBenchStopping"
+              />
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label text-theme-label small mb-1" for="companionBenchCycles">Cycles</label>
+              <input
+                id="companionBenchCycles"
+                v-model.number="companionBenchCycles"
+                @input="companionBenchCyclesDirty = true"
+                type="number"
+                min="1"
+                step="1"
+                class="form-control form-control-dark form-control-sm"
+                :disabled="companionBenchStatus?.running || companionBenchStopping"
+              />
+              <div class="form-text text-muted" style="font-size: 0.7rem;">How many times to run the parallel agent group in a row.</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label text-theme-label small mb-1" for="companionTestKnowledgeSource">Knowledge base</label>
+              <select
+                id="companionTestKnowledgeSource"
+                v-model="companionBenchTestKnowledgeSource"
+                @change="companionBenchTestKnowledgeSourceDirty = true"
+                class="form-select form-select-sm form-control-dark"
+                style="font-size: 0.8rem;"
+                :disabled="companionBenchStatus?.running || companionBenchStopping"
+              >
+                <option value="base">{{ companionTestKnowledgeOptions.baseLabel }}</option>
+                <option value="own" :disabled="!companionTestKnowledgeOptions.modelExists">{{ companionTestKnowledgeOptions.modelLabel }}</option>
+              </select>
+              <div class="form-text text-muted" style="font-size: 0.7rem;">Base = world seed file; model = research memory for {{ worldModeLabel }}.</div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-theme-label small mb-1">Level to test</label>
+            <div class="companion-levels-track companion-levels-track-phase2">
+              <button
+                v-for="(task, index) in campaignTasks"
+                :key="'test-' + task.key"
+                type="button"
+                class="companion-level-node companion-level-node-phase2"
+                :class="{ completed: companionBenchTestTaskKey === task.key, current: companionBenchTestTaskKey === task.key }"
+                :title="'Test · Level ' + (index + 1) + ': ' + task.title"
+                @click="companionBenchTestTaskKey = task.key"
+                :disabled="companionBenchStatus?.running || companionBenchStopping"
+              >
+                {{ index + 1 }}
+              </button>
+            </div>
+            <div class="small text-muted mt-1">
+              Each agent starts from the selected knowledge base (durable rows only — no NOTE). During the test, agents write to isolated memory files; knowledge is not merged.
+            </div>
+          </div>
+
+          <div v-if="companionBenchError" class="text-danger small mb-2">{{ companionBenchError }}</div>
+          <div v-if="companionBenchStatus?.error" class="text-danger small mb-2">{{ companionBenchStatus.error }}</div>
+
+          <div class="card card-dark p-2 mb-3">
+            <div class="small text-muted mb-1">Test results</div>
+            <div v-if="companionBenchTestResultRows.length === 0" class="small text-muted">No results yet.</div>
+            <div v-else class="table-responsive">
+              <table class="table table-theme table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>MODEL</th>
+                    <th>TASK</th>
+                    <th title="Success rate">SR</th>
+                    <th title="Mean operator questions per run (average across parallel agents)">MQ</th>
+                    <th>RUNS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, idx) in companionBenchTestResultRows" :key="'test-row-' + idx">
+                    <td>{{ row.model }}</td>
+                    <td>{{ row.task_title }}</td>
+                    <td>{{ formatBenchSuccessRate(row.sr) }}</td>
+                    <td :class="{ 'benchmark-deployment-violation': row.limit_violation }">
+                      {{ formatBenchMeanQuestions(row.mean_q) }}
+                    </td>
+                    <td>{{ row.runs }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card card-dark p-2 mb-3" :class="{ 'bench-phase-panel--inactive': !companionBenchInTest }">
+            <div class="small text-theme-label mb-1">Test Phase</div>
+            <div v-if="companionBenchInTest && companionBenchStatus?.current_cycle" class="small text-muted mb-1">
+              Cycle {{ companionBenchStatus.current_cycle }}/{{ companionBenchStatus.cycles || companionBenchCycles }}
+            </div>
+            <div class="d-flex flex-column gap-2">
+              <div
+                v-for="agent in companionBenchTestProgressRows"
+                :key="'agent-progress-' + agent.agent_id"
+                :class="{ 'bench-agent-slot--inactive': !agent.slotEnabled || !agent.active }"
+              >
+                <div class="d-flex justify-content-between small text-theme-label mb-1">
+                  <span>Agent {{ agent.agent_id }}</span>
+                  <span v-if="agent.active">{{ agent.tick }}/{{ agent.max_ticks }}</span>
+                  <span v-else-if="!agent.slotEnabled" class="text-muted">unused</span>
+                  <span v-else class="text-muted">waiting</span>
+                </div>
+                <div class="progress companion-bench-progress" role="progressbar" :aria-label="'Test phase agent ' + agent.agent_id + ' progress'" :aria-valuenow="agent.progress_pct" aria-valuemin="0" aria-valuemax="100">
+                  <div
+                    class="progress-bar bench-progress-test"
+                    :class="{ 'progress-bar-striped progress-bar-animated': agent.active && companionBenchStatus?.running && !agent.done }"
+                    :style="{ width: Math.max(agent.progress_pct, agent.active && companionBenchStatus?.running && !agent.done ? 3 : 0) + '%' }"
+                  >
+                    <template v-if="agent.active">{{ agent.progress_pct }}%</template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-dark p-2 mt-3">
+            <div class="small text-theme-label mb-1">Render</div>
+            <div class="bench-render-grid">
+              <div
+                class="bench-render-card"
+                v-for="card in companionBenchRenderCards"
+                :key="'render-' + card.agent_id"
+                :class="{ 'bench-render-card--inactive': !card.active }"
+              >
+                <div class="small text-muted mb-1">
+                  {{ card.title }}
+                  <span v-if="!card.active && !card.slotEnabled" class="ms-1">(unused)</span>
+                  <span v-else-if="!card.active" class="ms-1">(waiting)</span>
+                </div>
+                <div class="bench-render-viewport">
+                  <img
+                    v-if="card.frameSrc"
+                    :src="card.frameSrc"
+                    class="bench-render-img"
+                    :alt="card.title + ' observation'"
+                  />
+                  <div v-else class="bench-render-placeholder">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-accent btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content modal-dark">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-theme-heading" id="settingsModalLabel">
+            <i class="bi bi-gear-fill me-2"></i>Settings
+          </h5>
+          <button type="button" class="btn-close btn-close-theme" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small mb-1 d-block">Appearance</label>
+            <div class="btn-group btn-group-sm w-100" role="group" aria-label="Theme">
+              <button type="button" class="btn" :class="themePref === 'dark' ? 'btn-accent' : 'btn-outline-accent'" @click="setThemePref('dark')">
+                <i class="bi bi-moon-stars me-1"></i>Dark
+              </button>
+              <button type="button" class="btn" :class="themePref === 'light' ? 'btn-accent' : 'btn-outline-accent'" @click="setThemePref('light')">
+                <i class="bi bi-sun me-1"></i>Light
+              </button>
+              <button type="button" class="btn" :class="themePref === 'system' ? 'btn-accent' : 'btn-outline-accent'" @click="setThemePref('system')">
+                <i class="bi bi-circle-half me-1"></i>System
+              </button>
+            </div>
+            <div class="form-text settings-help-text mt-1" style="font-size: 0.7rem;">
+              Sunrise palette: lavender, ginger orange, and sage green. System follows your OS preference.
+            </div>
+          </div>
+
+          <div class="mb-3 settings-operator-picker">
+            <label class="form-label small mb-1 d-block">Choose Operator</label>
+            <p class="form-text settings-help-text mb-3" style="font-size: 0.7rem;">
+              Who answers when the agent asks for help during the session?
+            </p>
+
+            <div
+              class="settings-operator-section"
+              :class="{ 'is-selected': interactionMode !== 'human' && !isArcGame }"
+            >
+              <div class="settings-operator-section-label">AI Operator</div>
+              <button
+                type="button"
+                class="settings-operator-ai-picker"
+                :class="{ 'is-selected': interactionMode !== 'human' && !isArcGame, 'is-disabled': isArcGame }"
+                :disabled="isArcGame"
+                :title="isArcGame ? ('AI Operator is not available for ' + worldModeLabel) : 'TalkingHeads — an oracle answers using retrieved knowledge.'"
+                @click="selectSettingsAiOperator"
+              >
+                <img :src="aiOperatorAvatarSrc" :alt="aiOperatorDisplayName" class="settings-operator-ai-image" />
+                <span class="settings-operator-ai-name">{{ aiOperatorDisplayName }}</span>
+              </button>
+              <p v-if="isArcGame" class="settings-operator-ai-hint mb-0">
+                Not available for {{ worldModeLabel }} — use Human Operator.
+              </p>
+            </div>
+
+            <div class="settings-operator-divider" aria-hidden="true"></div>
+
+            <div
+              class="settings-operator-section"
+              :class="{ 'is-selected': interactionMode === 'human' }"
+            >
+              <div class="settings-operator-section-label">Human Operator</div>
+              <p class="form-text settings-help-text mb-2" style="font-size: 0.7rem;">
+                Stored in this browser only. Reuse the same nickname next time you open the page.
+              </p>
+              <div
+                class="profile-nickname-field profile-nickname-field--compact"
+                :class="{ 'profile-nickname-field--missing': !playerNickname.trim() }"
+              >
+                <label class="form-label profile-nickname-label mb-1" for="settingsPlayerNickname">
+                  Nickname
+                </label>
+                <input
+                  id="settingsPlayerNickname"
+                  v-model="playerNickname"
+                  type="text"
+                  maxlength="40"
+                  class="form-control form-control-dark profile-nickname-input"
+                  placeholder="e.g. Babycar"
+                  required
+                  aria-required="true"
+                  :aria-invalid="!playerNickname.trim() ? 'true' : 'false'"
+                  @focus="selectSettingsHumanOperator"
+                  @change="persistPlayerProfile({ syncServer: true })"
+                  @input="onSettingsNicknameInput"
+                />
+                <p v-if="!playerNickname.trim()" class="profile-nickname-hint mb-0">
+                  <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>
+                  Enter a nickname for chat and leaderboard.
+                </p>
+              </div>
+              <div class="avatar-picker-grid avatar-picker-grid--compact" role="listbox" aria-label="Choose avatar">
+                <button
+                  v-for="avatar in avatarOptions"
+                  :key="'settings-' + avatar.id"
+                  type="button"
+                  class="avatar-picker-item"
+                  :class="{ 'is-selected': playerAvatarId === avatar.id && interactionMode === 'human' }"
+                  :title="avatar.label"
+                  :aria-selected="playerAvatarId === avatar.id ? 'true' : 'false'"
+                  role="option"
+                  @click="selectSettingsHumanAvatar(avatar.id)"
+                >
+                  <img :src="avatarSrcFor(avatar.id)" :alt="avatar.label" class="avatar-picker-image" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="featureFlags.model_selection" class="mb-3 settings-agent-llm-section">
+            <label class="form-label small mb-1 d-block">Agent LLM that play</label>
+            <p class="form-text settings-help-text mb-2" style="font-size: 0.7rem;">
+              The language model that controls the agent in the game world.
+            </p>
+            <template v-if="isDemoProfile">
+              <label class="form-label small mb-1 d-block" for="activeAgentModelPreset">Model</label>
+              <select
+                id="activeAgentModelPreset"
+                :value="activeAgentModel"
+                class="form-select form-select-dark mb-2"
+                style="font-size: 0.8rem;"
+                @change="selectAgentModelPreset($event.target.value)"
+              >
+                <option
+                  v-for="preset in activeAgentModelPresets"
+                  :key="'agent-model-preset-' + preset.id"
+                  :value="preset.id"
+                >
+                  {{ preset.label }}
+                </option>
+              </select>
+              <div v-if="activeAgentModelPresetInfo" class="form-text settings-help-text mb-2" style="font-size: 0.7rem;">
+                {{ activeAgentModelPresetInfo.note }}
+              </div>
+              <div class="form-text settings-help-text" style="font-size: 0.7rem;">
+                <template v-if="isArcGame">
+                  Runs through <strong>OpenRouter</strong>. These models accept image inputs for ARC frame observations.
+                </template>
+                <template v-else>
+                  Runs through <strong>OpenRouter</strong>. Crafter and Exo-planet use text observations; vision models are not required.
+                </template>
+              </div>
+            </template>
+            <template v-else>
+              <label class="form-label small mb-1 d-block" for="activeAgentModelPreset">Model preset</label>
+              <select
+                id="activeAgentModelPreset"
+                :value="selectedAgentModelPreset"
+                class="form-select form-select-dark mb-2"
+                style="font-size: 0.8rem;"
+                @change="selectAgentModelPreset($event.target.value)"
+              >
+                <option value="__custom__">Custom model id</option>
+                <option
+                  v-for="preset in activeAgentModelPresets"
+                  :key="'agent-model-preset-' + preset.id"
+                  :value="preset.id"
+                >
+                  {{ preset.label }}
+                </option>
+              </select>
+              <div v-if="activeAgentModelPresetInfo" class="form-text settings-help-text mb-2" style="font-size: 0.7rem;">
+                {{ activeAgentModelPresetInfo.note }}
+              </div>
+              <label class="form-label small mb-1 d-block" for="activeAgentModel">Model id</label>
+              <input
+                id="activeAgentModel"
+                v-model="activeAgentModel"
+                type="text"
+                class="form-control form-control-dark"
+                style="font-size: 0.8rem;"
+                placeholder="OpenRouter model id (e.g. qwen/qwen2.5-vl-72b-instruct)"
+              />
+              <div class="form-text settings-help-text" style="font-size: 0.7rem;">
+                Runs through <strong>OpenRouter</strong>. For <code>arc_image</code>, <code>arc_grid_image</code>, or <code>arc_2_image</code>, use a model that accepts image inputs.
+              </div>
+            </template>
+            <div v-if="invalidModels.length" class="settings-model-warning" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Not found on OpenRouter: <code>{{ invalidModels.join(', ') }}</code>. Check the model id.
+            </div>
+          </div>
+          <div v-if="featureFlags.settings_api_keys" class="mb-3">
+            <label class="form-label small mb-2 d-block">API keys</label>
+            <p class="form-text settings-help-text mb-2" style="font-size: 0.7rem;">
+              For local debugging, prefer <code>OPENROUTER_API_KEY</code> in your shell or project <code>.env</code>.
+              Fields below are optional session/browser overrides.
+            </p>
+            <div class="d-flex flex-column gap-2">
+              <div>
+                <label class="form-label small mb-1" for="openrouterApiKey">OPENROUTER_API_KEY</label>
+                <input
+                  id="openrouterApiKey"
+                  v-model="openrouterApiKeyInput"
+                  type="password"
+                  autocomplete="off"
+                  class="form-control form-control-dark"
+                  style="font-size: 0.8rem;"
+                  placeholder="Leave blank to use env/.env"
+                />
+                <div class="form-text settings-help-text" style="font-size: 0.7rem;">
+                  Required for OpenRouter models.
+                  <span v-if="openrouterApiKeyPreview">Current: <code>{{ openrouterApiKeyPreview }}</code></span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label small mb-1" for="hfToken">HF_TOKEN</label>
+                <input
+                  id="hfToken"
+                  v-model="hfTokenInput"
+                  type="password"
+                  autocomplete="off"
+                  class="form-control form-control-dark"
+                  style="font-size: 0.8rem;"
+                  placeholder="Leave blank to use env/.env"
+                />
+                <div class="form-text settings-help-text" style="font-size: 0.7rem;">
+                  Required only when using Hugging Face Hub mode.
+                  <span v-if="hfTokenPreview">Current: <code>{{ hfTokenPreview }}</code></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-if="featureFlags.observation_format_selection" class="mb-3">
+            <label class="form-label small mb-1 d-block" for="megapromptConfigName">Observation prompt</label>
+            <select
+              id="megapromptConfigName"
+              v-model="megapromptConfigName"
+              class="form-select form-select-dark"
+              style="font-size: 0.8rem;"
+            >
+              <option v-for="name in megapromptOptions" :key="name" :value="name">{{ name }}</option>
+            </select>
+            <div v-if="isArcGame" class="form-text settings-help-text" style="font-size: 0.7rem;">
+              <code>arc_grid</code> sends a text 64x64 palette grid.
+              <code>arc_image</code> attaches the rendered frame image.
+              <code>arc_grid_image</code> sends both the grid and the image for vision-capable OpenRouter models.
+              <code>arc_2_image</code> attaches previous and current frame images for comparing the latest change.
+            </div>
+            <div v-if="arcImageWarning" class="settings-model-warning mt-2" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ arcImageWarning }}
+            </div>
+          </div>
+          <div v-if="isArcGame && featureFlags.arc_prompt_override" class="mb-3">
+            <label class="form-label small mb-1 d-block" for="arcPromptExtraSettings">ARC full prompt override</label>
+            <textarea
+              id="arcPromptExtraSettings"
+              v-model="arcPromptExtra"
+              class="form-control form-control-dark"
+              rows="4"
+              style="font-size: 0.78rem;"
+              placeholder="Full user prompt replacement for the next ARC agent tick..."
+              spellcheck="true"
+            ></textarea>
+            <div class="form-text settings-help-text" style="font-size: 0.7rem;">
+              If filled, replaces the generated ARC prompt. Leave empty to use <code>arc_grid</code>, <code>arc_image</code>, <code>arc_grid_image</code>, or <code>arc_2_image</code> templates.
+            </div>
+          </div>
+          <div v-if="featureFlags.expert_model_settings" class="mb-3">
+            <label class="form-label small mb-2 d-block">Expert models</label>
+            <p class="form-text settings-help-text mb-2" style="font-size: 0.7rem;">
+              All experts run through <strong>OpenRouter</strong>. Use only model ids available on OpenRouter.
+            </p>
+            <div class="d-flex flex-column gap-2">
+              <div v-for="row in expertUiRows" :key="row.key">
+                <label class="form-label small mb-1" :for="'model-' + row.key">{{ row.label }}</label>
+                <input
+                  :id="'model-' + row.key"
+                  v-model="expertModelFields[row.key]"
+                  type="text"
+                  class="form-control form-control-dark"
+                  style="font-size: 0.8rem;"
+                  placeholder="OpenRouter model id"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="border-top border-secondary pt-3 mt-1">
+            <template v-if="isDemoProfile">
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-accent btn-sm" type="button" @click="saveSessionConfig">
+                  <i class="bi bi-save me-1"></i>Save
+                </button>
+              </div>
+            </template>
+            <template v-else>
+              <p class="form-text settings-help-text mb-2" style="font-size: 0.7rem;">
+                <strong>Save settings</strong> — apply to the current server session.
+                <strong>Save for next time</strong> — also remember in the browser for the next page load.
+                <strong>Reset to defaults</strong> — restore <code>config/oracle_config.yaml</code> and clear saved browser preferences (API keys in <code>.env</code> are kept).
+              </p>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-accent btn-sm" type="button" @click="saveSessionConfig">
+                  <i class="bi bi-save me-1"></i>Save settings
+                </button>
+                <button class="btn btn-outline-accent btn-sm" type="button" @click="saveSettingsForNextSession">
+                  <i class="bi bi-bookmark me-1"></i>Save for next session
+                </button>
+                <button v-if="featureFlags.setup_wizard" class="btn btn-outline-accent btn-sm" type="button" @click="openSetupWizard">
+                  <i class="bi bi-compass me-1"></i>Setup wizard
+                </button>
+                <button class="btn btn-outline-danger btn-sm" type="button" @click="resetToDefaultSettings">
+                  <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to defaults
+                </button>
+              </div>
+            </template>
+            <div v-if="settingsSaveMessage" class="small mt-2" :class="settingsSaveOk ? 'text-success' : 'text-danger'">
+              {{ settingsSaveMessage }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <teleport to="body">
+    <div
+      v-if="apiKeyAlertActive && setupComplete"
+      class="api-key-guide-layer"
+      role="presentation"
+    >
+      <div class="api-key-alert-scrim" aria-hidden="true"></div>
+      <div class="api-key-guide-float" :style="apiKeyGuideFloatStyle">
+        <div class="api-key-guide-callout" role="alert">
+          <i class="bi bi-key-fill me-2"></i>{{ apiKeyAlertMessage }}
+        </div>
+        <button
+          class="btn btn-outline-accent settings-gear-btn settings-gear-btn--guide settings-gear-btn--neon"
+          type="button"
+          @click="openSettingsModal"
+          title="Open settings"
+        >
+          <i class="bi bi-gear-fill"></i>
+        </button>
+      </div>
+    </div>
+  </teleport>
+
+  <teleport to="body">
+    <div
+      v-if="companionStripSettingsOpen"
+      class="companion-strip-popover companion-strip-popover--floating"
+      :style="companionStripPopoverStyle"
+    >
+      <div class="companion-strip-popover-title">{{ isArcGame ? 'Agent settings' : 'Research settings' }}</div>
+      <label
+        class="companion-strip-field"
+        :class="{ 'companion-strip-field--locked': companionStepsLocked }"
+      >
+        <span>{{ isArcGame ? 'Max steps per run' : 'Max steps (whole run)' }}</span>
+        <div class="companion-strip-field-input-wrap">
+          <input
+            v-model.number="companionBenchMaxTicksPerTask"
+            @input="companionBenchMaxTicksDirty = true"
+            type="number"
+            min="1"
+            step="1"
+            class="form-control form-control-dark form-control-sm"
+            :disabled="companionStepsLocked"
+            :aria-disabled="companionStepsLocked"
+          />
+          <div
+            v-if="companionStepsLocked"
+            class="companion-steps-lock-tooltip"
+            role="tooltip"
+          >
+            <span class="companion-steps-lock-tooltip-title">To change step count:</span>
+            <span class="companion-steps-lock-tooltip-steps">
+              <span class="companion-steps-lock-action">
+                <span class="companion-steps-lock-icon companion-steps-lock-icon--stop" aria-hidden="true">
+                  <i class="bi bi-stop-fill"></i>
+                </span>
+                <span>Stop</span>
+              </span>
+              <span class="companion-steps-lock-tooltip-then">then</span>
+              <span class="companion-steps-lock-action">
+                <span class="companion-steps-lock-icon companion-steps-lock-icon--reset" aria-hidden="true">
+                  <i class="bi bi-arrow-clockwise"></i>
+                </span>
+                <span>Reset</span>
+              </span>
+            </span>
+          </div>
+        </div>
+      </label>
+      <label v-if="!isArcGame" class="companion-strip-field">
+        <span>Knowledge base (memory)</span>
+        <select
+          v-model="companionBenchKnowledgeSource"
+          @change="companionBenchKnowledgeSourceDirty = true"
+          class="form-select form-select-sm form-control-dark"
+          :disabled="companionResearchActive"
+        >
+          <option value="base">{{ companionKnowledgeOptions.baseLabel }}</option>
+          <option value="own" :disabled="!companionKnowledgeOptions.modelExists">{{ companionKnowledgeOptions.modelLabel }}</option>
+        </select>
+      </label>
+      <div v-if="companionBenchError" class="text-danger companion-strip-popover-error">{{ companionBenchError }}</div>
+      <div v-else-if="companionBenchStatus?.error" class="text-danger companion-strip-popover-error">{{ companionBenchStatus.error }}</div>
+    </div>
+  </teleport>
+
+  <teleport to="body">
+    <div
+      v-if="wizardCapabilityTip.visible"
+      class="wizard-capability-tip"
+      :style="wizardCapabilityTip.style"
+      role="tooltip"
+    >
+      {{ wizardCapabilityTip.text }}
+    </div>
+  </teleport>
+
+  <teleport to="body">
+    <div
+      v-if="companionTip.visible"
+      class="companion-tip-floating"
+      :style="companionTip.style"
+      role="tooltip"
+    >
+      <span class="companion-tip-floating-title">
+        <span v-if="!isArcGame" class="companion-tip-floating-index">{{ companionTip.index }}</span>{{ companionTip.title }}
+      </span>
+      <span v-if="companionTip.hint" class="companion-tip-floating-text">{{ companionTip.hint }}</span>
+    </div>
+  </teleport>
+
+  <teleport to="body">
+    <div v-if="saveToast" class="save-toast" :class="saveToast.ok ? 'save-toast--ok' : 'save-toast--err'" role="status" @click="dismissSaveToast">
+      <i class="bi me-2" :class="saveToast.ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'"></i>
+      <span>{{ saveToast.message }}</span>
+    </div>
+  </teleport>
+
+  <teleport to="body">
+    <div v-if="modelErrorAlert" class="model-error-toast" role="alert">
+      <button class="model-error-toast__close" type="button" @click="dismissModelError" aria-label="Dismiss">
+        <i class="bi bi-x-lg"></i>
+      </button>
+      <div class="model-error-toast__title">
+        <i class="bi bi-exclamation-octagon-fill me-2"></i>Model not available
+      </div>
+      <p class="model-error-toast__body">
+        OpenRouter rejected the model
+        <code v-if="modelErrorAlert.model">{{ modelErrorAlert.model }}</code><span v-else>you selected</span>.
+        Set a valid OpenRouter model id and try again.
+      </p>
+      <p v-if="modelErrorAlert.details" class="model-error-toast__details">{{ modelErrorAlert.details }}</p>
+      <div class="model-error-toast__actions">
+        <button class="btn btn-accent btn-sm" type="button" @click="openSettingsFromModelError">
+          <i class="bi bi-gear-fill me-1"></i>Open Settings
+        </button>
+        <button class="btn btn-outline-accent btn-sm" type="button" @click="dismissModelError">Dismiss</button>
+      </div>
+    </div>
+  </teleport>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="./js/play-session.js"></script>
+  <script src="./js/prompt-markdown.js"></script>
+  <script src="./js/player-profile.js"></script>
+  <script src="./js/benchmark-since.js"></script>
+  <script src="./js/world-map.js"></script>
+  <script src="./js/index.js"></script>
+</body>
+</html>

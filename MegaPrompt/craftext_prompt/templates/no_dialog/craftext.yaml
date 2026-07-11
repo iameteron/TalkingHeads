@@ -1,0 +1,16 @@
+protocol:
+  - name: craftext_reasoning_or_ask_help
+    template: reasoning.txt
+    renders:
+      act:
+        placeholder: "{{action}}"
+        renderer: bullet_list
+      obs:
+        placeholder: "{{observation}}"
+        renderer: map_and_coords
+      dialog:
+        placeholder: "{{dialog}}"
+        renderer: answer_age_last_five
+      goal:
+        placeholder: "{{goal}}"
+        renderer: just_a_goal

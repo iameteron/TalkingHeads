@@ -1,0 +1,41 @@
+# Canonical copy of play_web/external_visualization/exo-planet_mod/texture_mapping.txt
+# Base Craftax sprite → exo-planet texture path
+
+coal.png > exo-planet_mod/energy ore.png
+cow.png > exo-planet_mod/bots/mc 7.png
+diamond.png > exo-planet_mod/take 2/core ore take 3.png
+drink.png > assets/drink.png
+energy.png
+fence.png
+food.png
+furnace.png > exo-planet_mod/oven on.png
+grass.png > exo-planet_mod/grass.png
+health.png
+iron.png > exo-planet_mod/titanite ore.png
+iron_pickaxe.png > exo-planet_mod/tools/titan drill.png
+iron_sword.png > exo-planet_mod/tools/titan sword.png
+lava.png
+path.png
+plant.png > exo-planet_mod/plant.png
+plant_on_grass.png > exo-planet_mod/plant_on_grass.png
+player-down.png > exo-planet_mod/bots/mc 3 down.png
+player-left.png > exo-planet_mod/bots/mc 3 left.png
+player-right.png > exo-planet_mod/bots/mc 3 right.png
+player-sleep.png > exo-planet_mod/bots/mc 3 sleep.png
+player-up.png > exo-planet_mod/bots/mc 3 up.png
+player.png > exo-planet_mod/bots/mc 3.png
+ripe_plant_on_grass.png
+sand.png > exo-planet_mod/sand.png
+sapling.png > exo-planet_mod/plant.png
+skeleton.png > exo-planet_mod/bots/fren*
+stone.png > exo-planet_mod/stone.png
+stone_pickaxe.png > exo-planet_mod/tools/rock drill.png
+stone_sword.png > exo-planet_mod/tools/rock sword.png
+table.png > exo-planet_mod/replicator.png
+tree.png > exo-planet_mod/roots_on_grass.png
+water.png > exo-planet_mod/water_dence.png
+water_dence.png > exo-planet_mod/water_dence.png
+wood.png > exo-planet_mod/biomass.png
+wood_pickaxe.png > exo-planet_mod/tools/bone drill.png
+wood_sword.png > exo-planet_mod/tools/bone dagger.png
+zombie.png > exo-planet_mod/bots/enemy*

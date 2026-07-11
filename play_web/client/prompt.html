@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent messages — Craftax + Oracle</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+  <style>
+    :root { --bg-dark:#1a1d23; --bg-card:#23262e; --border-subtle:#3d424d; --accent:#e8a54b; --accent-dim:#b8823a; --text-primary:#e8e6e3; --text-muted:#9ca3af; --danger:#f87171; }
+    body { margin:0; min-height:100vh; font-family:"Segoe UI",system-ui,sans-serif; background:var(--bg-dark); color:var(--text-primary); }
+    .page-wrap { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .header-bar { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; padding:1rem 1.5rem; border-bottom:1px solid var(--border-subtle); background:var(--bg-card); }
+    .header-bar h1 { margin:0; font-size:1.1rem; font-weight:600; color:var(--text-primary); }
+    .btn-outline-accent { border-color:var(--accent); color:var(--accent); }
+    .btn-outline-accent:hover { background:rgba(232,165,75,0.15); border-color:var(--accent); color:var(--accent); }
+    .prompt-area { flex:1 1 0; min-height:0; overflow:auto; padding:1.5rem; }
+    .prompt-editor-card { background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:0.75rem; padding:1.25rem 1.5rem; max-width:1200px; margin:0 auto; min-height:calc(100vh - 8rem); display:flex; flex-direction:column; box-sizing:border-box; }
+    .frozen-field { width:100%; resize:none; background:#111318; border-radius:0.5rem; border:1px solid var(--border-subtle); padding:0.75rem 0.9rem; font-family:ui-monospace,"Cascadia Code","Fira Code",monospace; font-size:0.78rem; line-height:1.5; color:var(--text-primary); cursor:default; }
+    .frozen-field:focus { outline:none; border-color:var(--border-subtle); box-shadow:none; }
+    .frozen-system { min-height:4.5rem; max-height:8rem; }
+    .frozen-user { flex:1 1 0; min-height:240px; }
+    .goal-badge { display:inline-block; background:rgba(232,165,75,0.2); color:var(--accent); padding:0.25rem 0.75rem; border-radius:0.5rem; font-size:0.8rem; font-weight:600; margin-bottom:0.75rem; }
+    .status-loading { color:var(--text-muted); padding:2rem; text-align:center; }
+    .status-error { color:var(--danger); padding:2rem; }
+    .hint-muted { font-size:0.8rem; color:var(--text-muted); }
+    .live-dot { display:inline-block; width:0.45rem; height:0.45rem; border-radius:50%; background:#4ade80; margin-right:0.35rem; vertical-align:middle; }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <header class="header-bar">
+      <h1><i class="bi bi-chat-left-text me-2"></i>Last messages sent to the agent</h1>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <span class="hint-muted small d-none d-md-inline"><span class="live-dot" aria-hidden="true"></span>Auto-refresh every 2s</span>
+        <a href="./game.html" class="btn btn-outline-accent btn-sm">
+          <i class="bi bi-arrow-left me-1"></i>Back to client
+        </a>
+        <button type="button" class="btn btn-outline-accent btn-sm" id="refreshBtn">
+          <i class="bi bi-arrow-clockwise me-1"></i>Refresh now
+        </button>
+      </div>
+    </header>
+    <main class="prompt-area">
+      <div id="content">
+        <div class="status-loading" id="loading">Loading…</div>
+        <div id="promptContent" style="display: none;">
+          <div class="prompt-editor-card">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+              <div>
+                <div class="goal-badge">
+                  <span class="me-1">Session goal:</span>
+                  <span id="goalBadge"></span>
+                </div>
+                <p class="hint-muted mb-0">Frozen copy-only view: the same <code>system_message</code> and <code>user_message</code> arguments last passed to <code>ActiveAgent.chat</code> on this server session.</p>
+              </div>
+            </div>
+            <label for="systemView" class="form-label small text-muted mb-1">System message</label>
+            <textarea id="systemView" class="frozen-field frozen-system mb-3" readonly spellcheck="false" tabindex="-1" aria-label="System message sent to the agent"></textarea>
+            <label for="promptView" class="form-label small text-muted mb-1">User message (environment + instructions)</label>
+            <textarea id="promptView" class="frozen-field frozen-user" readonly spellcheck="false" tabindex="-1" aria-label="User message sent to the agent"></textarea>
+            <p class="hint-muted mt-2 mb-0" id="emptyHint" style="display: none;">No agent tick yet on this session. Run the agent from the main client, then wait for auto-refresh.</p>
+          </div>
+        </div>
+        <div class="status-error" id="error" style="display: none;"></div>
+      </div>
+    </main>
+  </div>
+  <script src="./js/play-session.js"></script>
+  <script>
+    const API_BASE = window.PlayWebSession?.resolveApiBase?.() || "http://127.0.0.1:8001/api";
+    const loadingEl = document.getElementById("loading");
+    const contentEl = document.getElementById("promptContent");
+    const errorEl = document.getElementById("error");
+    const goalBadgeEl = document.getElementById("goalBadge");
+    const systemViewEl = document.getElementById("systemView");
+    const promptViewEl = document.getElementById("promptView");
+    const emptyHintEl = document.getElementById("emptyHint");
+
+    let firstLoad = true;
+
+    async function fetchLastPrompt() {
+      if (firstLoad) {
+        loadingEl.style.display = "block";
+        contentEl.style.display = "none";
+        errorEl.style.display = "none";
+      }
+      try {
+        const res = await window.PlayWebSession.apiFetch(API_BASE, "/agent_prompt");
+        if (!res.ok) throw new Error(`HTTP ${res.status} on /agent_prompt`);
+        const data = await res.json();
+        const userText = data.prompt != null ? String(data.prompt) : "";
+        const systemText = data.system_message != null ? String(data.system_message) : "";
+        goalBadgeEl.textContent = data.goal || "No goal set";
+        systemViewEl.value = systemText;
+        promptViewEl.value = userText;
+        emptyHintEl.style.display = data.has_prompt ? "none" : "block";
+        if (firstLoad) {
+          loadingEl.style.display = "none";
+          contentEl.style.display = "block";
+          firstLoad = false;
+        }
+      } catch (err) {
+        loadingEl.style.display = "none";
+        errorEl.textContent = `Failed to load agent messages: ${err.message}. Is the play API server running?`;
+        errorEl.style.display = "block";
+        contentEl.style.display = "none";
+        firstLoad = true;
+      }
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", fetchLastPrompt);
+    fetchLastPrompt();
+    setInterval(fetchLastPrompt, 2000);
+  </script>
+</body>
+</html>

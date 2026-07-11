@@ -1,0 +1,28 @@
+protocol:
+  - name: craftext_reasoning_or_ask_help
+    template: reasoning.txt
+    renders:
+      act:
+        placeholder: "{{action}}"
+        renderer: bullet_list
+      obs:
+        placeholder: "{{observation}}"
+        renderer: map_and_coords
+      dialog:
+        placeholder: "{{dialog}}"
+        renderer: last_five
+      goal:
+        placeholder: "{{goal}}"
+        renderer: just_a_goal
+      action_history:
+        placeholder: "{{action_history}}"
+        renderer: last_five_after_question
+      state_history:
+        placeholder: "{{state_history}}"
+        renderer: step_transitions
+      knowledge:
+        placeholder: "{{knowledge}}"
+        renderer: as_is
+      emergency_message:
+        placeholder: "{{emergency_message}}"
+        renderer: from_dialog

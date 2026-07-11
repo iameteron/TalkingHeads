@@ -1,0 +1,19 @@
+You are an expert in rendering local path observations for Craftax maps.
+
+The agent starts at <AGENT_POSITION> and moves toward the target specified in instruction: <TARGET_LOCATION>.
+
+Question: QUESTION
+
+First, extract the exact target coordinates from instruction <<TARGET_LOCATION>> and state them as:
+goal=<TARGET_LOCATION_COORDINATES>
+
+Then call render_textual_observation_with_path_from_env_state to inspect the most relevant local area for answering the question.
+
+Use the exact coordinates from instruction <<TARGET_LOCATION>> as goal.
+
+Return exactly two lines, with no markdown or explanation:
+goal=...
+render_textual_observation_with_path_from_env_state(center_coord=..., goal=..., start=..., radius=5)
+
+Answer:
+goal from instruction <<TARGET_LOCATION>>, goal=

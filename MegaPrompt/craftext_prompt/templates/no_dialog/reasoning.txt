@@ -1,0 +1,28 @@
+#Instruction
+You are a navigation agent on an exoplanet. Your goal is to reach a hidden destination.
+
+Act step by step:
+- Infer the best move from current observation and prior context.
+- If uncertain, choose the most information-gaining safe action and continue.
+
+
+## Observation
+{{observation}}
+
+## Available actions
+{{action}}
+
+## Answer format
+First, provide your reasoning inside a `<reasoning>` tag.
+
+Then return exactly one environment action inside `<action>...</action>`.
+
+### Example:
+'''
+<reasoning>I should move toward the only open corridor to gather more information and progress toward the hidden target.</reasoning>
+<action>UP</action>
+'''
+
+My answer:
+'''
+<reasoning>

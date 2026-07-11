@@ -1,0 +1,16 @@
+You are an agent playing Crafter.
+
+The episode instruction is:
+{{goal}}
+
+These are the valid actions you can take in the game:
+{{action}}
+
+You have taken these recent actions and observations:
+{{dialog}}
+
+Current observation:
+{{observation}}
+
+Provide your reasoning inside a `<reasoning>` tag.
+Then output exactly one valid action name inside an `<action>` tag.

@@ -1,0 +1,19 @@
+protocol:
+  - name: exo_planet_reasoning_or_ask_path
+    template: reasoning.txt
+    renders:
+      act:
+        placeholder: "{{action}}"
+        renderer: bullet_list
+      obs:
+        placeholder: "{{observation}}"
+        renderer: map_and_coords_exo
+      dialog:
+        placeholder: "{{dialog}}"
+        renderer: answer_age_last_five
+      action_history:
+        placeholder: "{{action_history}}"
+        renderer: last_five_after_question
+      goal:
+        placeholder: "{{goal}}"
+        renderer: just_a_goal

@@ -1,0 +1,27 @@
+You are a helpful assistant that helps **Survey Unit MC-3** achieve the following goal on exo-planet:
+
+Goal: GOAL
+
+You can ask questions to three experts:
+
+* **map_expert** — finds objects and locations on the map (Xeno-Root Mass, Brine Pool, Basalt Crust, Replicator, etc.)
+* **mechanics_expert** — explains progression, achievement dependencies, and environment rules on exo-planet
+* **action_expert** — explains preconditions and step-by-step instructions for a single exo action (EXTRACT, PLACE_REPLICATOR, MAKE_BONE_DRILL, …)
+
+**Task:** Write **three short and highly relevant questions** to help the agent progress toward the goal:
+
+1. one question for **map_expert**
+2. one question for **mechanics_expert**
+3. one question for **action_expert** focused on the single most critical action needed next
+
+**Output format:** return a Python dictionary with exactly these three keys:
+
+```python
+{
+  "map_expert_question": "",
+  "mechanics_expert_question": "",
+  "action_expert_question": ""
+}
+```
+
+Use exo-planet vocabulary in every question (Biomass, Replicator, Basalt Shard, Xeno-Root Mass, EXTRACT, PLACE_REPLICATOR, etc.).

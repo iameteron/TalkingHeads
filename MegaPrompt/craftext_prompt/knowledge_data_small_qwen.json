@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": 1,
+      "type": "ACTION",
+      "skill": "PLACE_TABLE",
+      "recipe": "2 wood",
+      "rules": "requires 2 wood in inventory; must be adjacent to grass or path tile; agent must face the tile where the table is placed"
+    },
+    {
+      "id": 2,
+      "type": "RECIPE",
+      "skill": "wood_pickaxe",
+      "recipe": "1 wood",
+      "rules": "must have crafting table; must be adjacent to the crafting table; use MAKE_WOOD_PICKAXE action"
+    },
+    {
+      "id": 3,
+      "type": "MECHANICS",
+      "skill": "wood_gathering",
+      "recipe": "",
+      "rules": "when adjacent to a tree and facing it, use DO action to gather wood; no tool required"
+    },
+    {
+      "id": 4,
+      "type": "ACTION",
+      "skill": "DO",
+      "recipe": "",
+      "rules": "to gather stone: must be adjacent to stone block and facing it; requires a pickaxe (wooden or stone) equipped in inventory"
+    },
+    {
+      "id": 5,
+      "type": "ACTION",
+      "skill": "MAKE_WOOD_PICKAXE",
+      "recipe": "",
+      "rules": "requires 1 wood in inventory and must be adjacent to the crafting table at (28,33), facing it"
+    },
+    {
+      "id": 6,
+      "type": "MECHANICS",
+      "skill": "stone_mining",
+      "recipe": "",
+      "rules": "requires wood_pickaxe equipped; must be adjacent to stone block and facing it; success adds one stone to inventory"
+    },
+    {
+      "id": 7,
+      "type": "RECIPE",
+      "skill": "stone_pickaxe",
+      "recipe": "1 wood, 1 stone",
+      "rules": "requires crafting table to be placed and agent adjacent to it; no flint required"
+    },
+    {
+      "id": 8,
+      "type": "ACTION",
+      "skill": "MAKE_STONE_PICKAXE",
+      "recipe": "",
+      "rules": "requires crafting table to be placed and agent adjacent to it; requires at least 1 wood and 1 stone in inventory; no flint required"
+    },
+    {
+      "id": 9,
+      "type": "MECHANICS",
+      "skill": "crafting_table_placement",
+      "recipe": "",
+      "rules": "requires 2 wood in inventory; must be adjacent to grass or path tile"
+    },
+    {
+      "id": 10,
+      "type": "MECHANICS",
+      "skill": "coal_mining",
+      "recipe": "",
+      "rules": "requires stone pickaxe equipped; must be adjacent to coal block; facing it; successful mining adds one coal to inventory"
+    },
+    {
+      "id": 11,
+      "type": "STRATEGY",
+      "skill": "coal_collection",
+      "recipe": "",
+      "rules": "move to coal block at [28,33]; face it; use DO action with stone pickaxe"
+    },
+    {
+      "id": 12,
+      "type": "MECHANICS",
+      "skill": "iron_mining",
+      "recipe": "",
+      "rules": "requires wooden or stone pickaxe equipped; must be adjacent to iron block and facing it"
+    },
+    {
+      "id": 13,
+      "type": "RECIPE",
+      "skill": "furnace_crafting",
+      "recipe": "8 stone, 1 coal",
+      "rules": "requires agent to be adjacent to grass or path tile; must stand next to the tile and face it during placement; requires at least 8 stone and 1 coal in inventory"
+    },
+    {
+      "id": 14,
+      "type": "ACTION",
+      "skill": "PLACE_FURNACE",
+      "recipe": "",
+      "rules": "agent must be adjacent to an unoccupied grass or path tile; must face the tile; requires at least 8 stone and 1 coal in inventory"
+    }
+  ]
+}

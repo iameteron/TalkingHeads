@@ -1,0 +1,16 @@
+protocol:
+  - name: craftext_balrog
+    template: reasoning.txt
+    renders:
+      act:
+        placeholder: "{{action}}"
+        renderer: balrog_actions
+      obs:
+        placeholder: "{{observation}}"
+        renderer: balrog_text
+      dialog:
+        placeholder: "{{dialog}}"
+        renderer: last_five
+      goal:
+        placeholder: "{{goal}}"
+        renderer: just_a_goal

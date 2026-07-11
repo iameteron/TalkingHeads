@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": 2,
+      "type": "MECHANICS",
+      "skill": "water_movement",
+      "recipe": "",
+      "rules": "cannot walk on water tiles"
+    },
+    {
+      "id": 3,
+      "type": "ACTION",
+      "skill": "PLACE_TABLE",
+      "recipe": "2 wood",
+      "rules": "requires 2 wood in inventory; must be facing an unoccupied grass or path tile; crafting table is placed on the tile being faced"
+    },
+    {
+      "id": 4,
+      "type": "RECIPE",
+      "skill": "wood_pickaxe",
+      "recipe": "1 wood",
+      "rules": "requires crafting table; must be adjacent to the table; use MAKE_WOOD_PICKAXE action"
+    },
+    {
+      "id": 5,
+      "type": "ACTION",
+      "skill": "MAKE_WOOD_PICKAXE",
+      "recipe": "",
+      "rules": "requires crafting table placed in the world; agent must be adjacent to the table; at least 1 wood in inventory"
+    },
+    {
+      "id": 6,
+      "type": "MECHANICS",
+      "skill": "wood_pickaxe_mining",
+      "recipe": "",
+      "rules": "wood pickaxe can mine stone blocks"
+    },
+    {
+      "id": 7,
+      "type": "STRATEGY",
+      "skill": "stone_collection",
+      "recipe": "",
+      "rules": "use wood pickaxe to mine stone; requires being adjacent to stone block and having wood pickaxe in inventory"
+    },
+    {
+      "id": 8,
+      "type": "RECIPE",
+      "skill": "stone_pickaxe",
+      "recipe": "2 stone, 1 wood",
+      "rules": "requires crafting table; must be adjacent to table; use MAKE_STONE_PICKAXE action"
+    },
+    {
+      "id": 9,
+      "type": "ACTION",
+      "skill": "MAKE_STONE_PICKAXE",
+      "recipe": "",
+      "rules": "requires crafting table placed in world; agent adjacent to table; 2 stone and 1 wood in inventory"
+    },
+    {
+      "id": 10,
+      "type": "MECHANICS",
+      "skill": "wood_gathering",
+      "recipe": "",
+      "rules": "can be gathered by hand; no tool required; use DO action when adjacent to tree; yields +1 wood per action"
+    },
+    {
+      "id": 11,
+      "type": "MECHANICS",
+      "skill": "coal_mining",
+      "recipe": "",
+      "rules": "coal can be mined with stone_pickaxe or better; requires being adjacent and facing the coal block; use DO action"
+    },
+    {
+      "id": 12,
+      "type": "RECIPE",
+      "skill": "coal",
+      "recipe": "coal ore",
+      "rules": "mined using stone_pickaxe or higher-tier pickaxe; yields 1-2 coal per block"
+    },
+    {
+      "id": 13,
+      "type": "MECHANICS",
+      "skill": "iron_mining",
+      "recipe": "",
+      "rules": "use DO action while facing iron ore block; requires stone-tier or better pickaxe in inventory"
+    },
+    {
+      "id": 14,
+      "type": "STRATEGY",
+      "skill": "iron_collection",
+      "recipe": "",
+      "rules": "locate iron ore block; move adjacent; ensure stone_pickaxe or better is equipped; face block and use DO action"
+    },
+    {
+      "id": 15,
+      "type": "MECHANICS",
+      "skill": "tool_tier_stone_required",
+      "recipe": "",
+      "rules": "coal and iron ore require at least a stone-tier pickaxe to mine; wood pickaxe is insufficient"
+    },
+    {
+      "id": 16,
+      "type": "MECHANICS",
+      "skill": "block_movement",
+      "recipe": "",
+      "rules": "Solid resource blocks (like coal, iron ore) block movement; must be mined first to pass through the tile"
+    },
+    {
+      "id": 17,
+      "type": "RECIPE",
+      "skill": "furnace",
+      "recipe": "8 stone, 1 coal",
+      "rules": "must craft using PLACE_FURNACE action while facing an unoccupied grass or path tile"
+    },
+    {
+      "id": 18,
+      "type": "ACTION",
+      "skill": "PLACE_FURNACE",
+      "recipe": "",
+      "rules": "requires 8 stone and at least 1 coal in inventory; agent must face an unoccupied grass or path tile"
+    },
+    {
+      "id": 19,
+      "type": "RECIPE",
+      "skill": "iron_pickaxe",
+      "recipe": "1 iron, 1 wood",
+      "rules": "requires crafting table placed and agent adjacent; furnace must be adjacent to crafting table; use MAKE_IRON_PICKAXE action"
+    },
+    {
+      "id": 20,
+      "type": "ACTION",
+      "skill": "MAKE_IRON_PICKAXE",
+      "recipe": "",
+      "rules": "requires agent adjacent to crafting table, furnace adjacent to table, 1 iron and 1 wood in inventory"
+    },
+    {
+      "id": 21,
+      "type": "MECHANICS",
+      "skill": "tree_movement",
+      "recipe": "",
+      "rules": "cannot walk on tree tiles; tree tiles are solid and block movement"
+    }
+  ]
+}

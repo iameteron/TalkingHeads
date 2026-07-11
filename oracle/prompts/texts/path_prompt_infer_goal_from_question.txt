@@ -1,0 +1,16 @@
+You are an expert in Craftax navigation.
+
+The scenario instruction (CrafText) did not include explicit target coordinates. Infer the grid cell the agent wants to reach using only the agent's question (and common Craftax goals such as reaching water, a structure, or a described landmark).
+
+Agent current position: <AGENT_POSITION>
+
+Question: QUESTION
+
+Output format:
+- Coordinates are [row, col] integers (origin top-left; row increases downward, column increases rightward).
+- If you cannot infer a specific destination from the question, reply with exactly this one line and nothing else:
+TARGET_LOCATION_NOT_PROVIDED
+- Otherwise reply with exactly one line and nothing else:
+goal=[row, col]
+
+Answer:

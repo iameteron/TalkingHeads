@@ -1,0 +1,54 @@
+{
+  "tiles": {
+    "grass": "Regolith Turf",
+    "sand": "Dune Silts",
+    "stone": "Basalt Crust",
+    "water": "Brine Pool",
+    "lava": "Magma Vent",
+    "path": "Survey Trail",
+    "tree": "Xeno-Root Mass",
+    "coal": "Energy Ore",
+    "iron": "Titanite Ore",
+    "diamond": "Core Ore",
+    "plant": "Bio-Crop",
+    "ripe_plant": "Mature Bio-Crop",
+    "plant_on_grass": "Sprout on Turf",
+    "sapling": "Bio-Sprout",
+    "table": "Replicator",
+    "crafting_table": "Replicator",
+    "furnace": "Thermal Oven",
+    "out_of_bounds": "Out of bounds",
+    "unknown": "Unknown"
+  },
+  "items": {
+    "wood": "Biomass",
+    "stone": "Basalt Shard",
+    "coal": "Energy Ore",
+    "iron": "Titanite Ore",
+    "diamond": "Core Ore",
+    "sapling": "Bio-Sprout",
+    "wood_pickaxe": "Bone Drill",
+    "stone_pickaxe": "Rock Drill",
+    "iron_pickaxe": "Titan Drill",
+    "wood_sword": "Bone Dagger",
+    "stone_sword": "Rock Cutter",
+    "iron_sword": "Titan Blade"
+  },
+  "mobs": {
+    "Zombie": "Hostile Scavenger",
+    "Cow": "Grazer Unit",
+    "Skeleton": "Frenzy Stalker"
+  },
+  "vitals": {
+    "health": "Hull integrity",
+    "food": "Nutrient reserves",
+    "drink": "Fluid reserves",
+    "energy": "Power cell charge"
+  },
+  "labels": {
+    "agent": "Survey Unit MC-3",
+    "agent_symbol": "@",
+    "non_ground_objects": "non-turf objects",
+    "combat_hint": "turn to face the threat and use ENGAGE_HOSTILE repeatedly"
+  }
+}

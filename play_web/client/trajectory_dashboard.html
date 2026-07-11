@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trajectory Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="./js/theme.js"></script>
+  <script src="./js/benchmark-since.js"></script>
+  <script src="./js/player-profile.js"></script>
+  <link href="./css/dashboard-theme.css" rel="stylesheet" />
+  <link href="./css/trajectory_dashboard.css" rel="stylesheet" />
+</head>
+<body>
+  <div id="app" class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div>
+          <h2><i class="bi bi-collection-play me-1"></i>Trajectories</h2>
+          <div class="subtitle">Double-click to rename, click to select.</div>
+          <a href="./game.html" class="dash-back-link d-inline-block mt-1">
+            <i class="bi bi-arrow-left me-1"></i>Back to Talking Heads
+          </a>
+        </div>
+        <div class="sidebar-header-actions">
+          <div class="btn-group btn-group-sm theme-toggle" role="group" aria-label="Theme">
+            <button type="button" class="btn" :class="themePref === 'dark' ? 'btn-accent' : 'btn-outline-accent'" title="Dark" @click="setThemePref('dark')">
+              <i class="bi bi-moon-stars"></i>
+            </button>
+            <button type="button" class="btn" :class="themePref === 'light' ? 'btn-accent' : 'btn-outline-accent'" title="Light" @click="setThemePref('light')">
+              <i class="bi bi-sun"></i>
+            </button>
+            <button type="button" class="btn" :class="themePref === 'system' ? 'btn-accent' : 'btn-outline-accent'" title="System" @click="setThemePref('system')">
+              <i class="bi bi-circle-half"></i>
+            </button>
+          </div>
+          <button class="btn btn-outline-accent btn-sm py-0 px-2"
+                  style="font-size: 0.7rem;"
+                  type="button"
+                  @click="loadTrajectories">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+      </div>
+      <div class="traj-list">
+        <div v-if="loading" class="small text-muted px-1">Loading trajectories…</div>
+        <div v-else-if="error" class="small text-danger px-1">{{ error }}</div>
+        <div v-else-if="items.length === 0" class="small text-muted px-1">
+          No saved trajectories yet.<br />
+          Enable <strong>Record trajectory</strong> in Talking Heads and finish an episode.
+        </div>
+        <template v-else>
+          <div v-for="t in items"
+               :key="t.id"
+               class="traj-item"
+               :class="{
+                 selected: selectedIds.includes(t.id),
+                 'traj-item--talkingheads': t.interaction_mode !== 'human'
+               }"
+               @click="toggleSelect(t.id, $event)"
+               @dblclick.stop="beginRename(t)">
+            <div class="traj-main">
+              <div v-if="editingId !== t.id" class="traj-header-row mb-1">
+                <div class="traj-name" :title="t.display_name">
+                  {{ t.display_name }}
+                </div>
+                <div class="traj-actions">
+                  <button class="traj-icon-btn"
+                          type="button"
+                          title="Delete this trajectory from disk"
+                          @click.stop="deleteTrajectory(t)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                  <button class="traj-icon-btn"
+                          type="button"
+                          title="Show short trajectory history"
+                          @click.stop="openHistory(t)">
+                    <i class="bi bi-file-earmark-text"></i>
+                  </button>
+                  <span v-if="t.interaction_mode === 'human'" class="traj-badge traj-badge-human">Human</span>
+                  <span v-else class="traj-badge traj-badge-talkingheads" title="AI operator (TalkingHeads oracle)">
+                    <img src="./assets/talkingheads-avatar.png" alt="" class="traj-badge-avatar" />
+                    TalkingHeads
+                  </span>
+                </div>
+              </div>
+              <input v-else
+                     ref="renameInput"
+                     class="traj-name-input mb-1"
+                     v-model="editingName"
+                     @keydown.enter.prevent="commitRename"
+                     @keydown.esc.prevent="cancelRename"
+                     @blur="commitRename" />
+              <div v-if="t.model" class="traj-model" :title="t.model_mode ? (t.model + ' (' + t.model_mode + ')') : t.model">
+                <i class="bi bi-cpu me-1"></i>{{ t.model }}
+              </div>
+              <div class="traj-meta">
+                <strong>{{ t.steps }}</strong> steps ·
+                <strong>{{ t.actions }}</strong> actions ·
+                <strong>{{ t.questions }}</strong> questions
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="main-header">
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="h6 mb-0 text-uppercase dash-title" style="letter-spacing: 0.12em;">
+              <i class="bi bi-bar-chart-line-fill me-1"></i>Trajectory Dashboard
+            </h1>
+            <span class="pill">
+              <span class="pill-dot"></span>
+              Live from Talking Heads
+            </span>
+          </div>
+          <div class="small text-muted">
+            Aggregate question / action behaviour and episode lengths across selected trajectories.
+          </div>
+        </div>
+        <div class="text-end">
+          <div class="small text-muted">
+            Selected: <strong>{{ selectedIds.length }}</strong>
+          </div>
+          <button class="btn btn-outline-accent btn-sm mt-1 py-0 px-2 me-1"
+                  style="font-size: 0.7rem;"
+                  type="button"
+                  @click="openPlayMode"
+                  :disabled="selectedIds.length !== 1">
+            <i class="bi bi-play-circle me-1"></i>Play mode
+          </button>
+          <button class="btn btn-outline-accent btn-sm mt-1 py-0 px-2"
+                  style="font-size: 0.7rem;"
+                  type="button"
+                  @click="refreshStats"
+                  :disabled="selectedIds.length === 0">
+            <i class="bi bi-arrow-repeat me-1"></i>Recompute stats
+          </button>
+        </div>
+      </div>
+      <section class="benchmark-overview-panel" :class="{ 'benchmark-overview-panel--collapsed': benchmarkPanelCollapsed }">
+        <div class="benchmark-overview-header">
+          <div class="benchmark-overview-top">
+            <div class="benchmark-overview-brand">
+              <button
+                type="button"
+                class="benchmark-panel-toggle"
+                :title="benchmarkPanelCollapsed ? 'Expand leaderboard' : 'Collapse leaderboard'"
+                :aria-expanded="!benchmarkPanelCollapsed"
+                aria-controls="benchmark-overview-body"
+                @click="toggleBenchmarkPanel"
+              >
+                <i class="bi" :class="benchmarkPanelCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
+              </button>
+              <h2 class="benchmark-overview-title"><i class="bi bi-trophy-fill"></i>Campaign leaderboard</h2>
+              <div class="benchmark-world-mode-switch" role="group" aria-label="Benchmark environment">
+                <button
+                  type="button"
+                  class="benchmark-world-mode-btn"
+                  :class="{ 'is-active': benchmarkWorldMode === 'craftax' }"
+                  title="Craftax"
+                  @click="setBenchmarkWorldMode('craftax')"
+                >
+                  <img src="./assets/agent-icon-craftax.png" alt="" class="benchmark-world-mode-icon" />
+                  <span class="benchmark-world-mode-label">Craftax</span>
+                </button>
+                <button
+                  type="button"
+                  class="benchmark-world-mode-btn"
+                  :class="{ 'is-active': benchmarkWorldMode === 'exo-planet' }"
+                  title="Exo-Planet"
+                  @click="setBenchmarkWorldMode('exo-planet')"
+                >
+                  <img src="./assets/agent-icon-exo-planet.png" alt="" class="benchmark-world-mode-icon" />
+                  <span class="benchmark-world-mode-label">Exo-Planet</span>
+                </button>
+              </div>
+            </div>
+            <div v-show="!benchmarkPanelCollapsed" class="benchmark-toolbar-actions">
+              <label class="benchmark-since-label">
+                <span class="benchmark-since-text">Since</span>
+                <input
+                  type="date"
+                  class="form-control form-control-sm benchmark-since-input"
+                  v-model="benchmarkSince"
+                  @change="onBenchmarkSinceChange"
+                />
+              </label>
+              <button
+                v-if="benchmarkSince"
+                class="benchmark-toolbar-btn"
+                type="button"
+                title="Clear date filter"
+                @click="clearBenchmarkSince"
+              >
+                Clear
+              </button>
+              <button class="benchmark-toolbar-btn benchmark-toolbar-btn--primary" type="button" @click="loadCampaignBenchmark" title="Refresh leaderboard">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div v-show="!benchmarkPanelCollapsed" id="benchmark-overview-body" class="benchmark-overview-body">
+        <div v-if="campaignBenchmarkError" class="text-danger small">{{ campaignBenchmarkError }}</div>
+        <template v-else>
+          <div class="benchmark-overview-grid">
+            <article v-for="block in benchmarkModeBlocks" :key="block.world_mode" class="benchmark-mode-card">
+              <div class="benchmark-section-head">
+                <h3 class="benchmark-section-title"><i class="bi bi-robot"></i>By models</h3>
+                <span class="benchmark-section-meta">{{ block.exploration_runs || 0 }} exploration runs</span>
+              </div>
+              <div v-if="!block.compact.length && !block.extended.length" class="small text-muted">No benchmark rows yet.</div>
+              <div v-else class="benchmark-models-wrap">
+                <table class="table table-theme table-sm benchmark-models-table mb-0">
+                  <colgroup>
+                    <col class="benchmark-col-rank" />
+                    <col class="benchmark-col-model" />
+                    <col class="benchmark-col-rt" />
+                    <col class="benchmark-col-q" />
+                    <template v-for="task in block.deployment_tasks" :key="block.world_mode + '-col-' + task.key">
+                      <col class="benchmark-col-metric" />
+                      <col class="benchmark-col-metric" />
+                    </template>
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th :rowspan="block.deployment_tasks.length ? 3 : 2">#</th>
+                      <th :rowspan="block.deployment_tasks.length ? 3 : 2">Model</th>
+                      <th colspan="2" class="benchmark-th-group">Exploration</th>
+                      <th
+                        v-if="block.deployment_tasks.length"
+                        :colspan="block.deployment_tasks.length * 2"
+                        class="benchmark-th-group"
+                      >
+                        Deployment
+                      </th>
+                    </tr>
+                    <tr>
+                      <th :rowspan="block.deployment_tasks.length ? 2 : 1">RT_max</th>
+                      <th :rowspan="block.deployment_tasks.length ? 2 : 1">Q_max</th>
+                      <th
+                        v-for="task in block.deployment_tasks"
+                        :key="block.world_mode + '-deployment-task-' + task.key"
+                        colspan="2"
+                        class="benchmark-th-subgroup"
+                        :title="task.title"
+                      >
+                        <span class="benchmark-deployment-task-head">
+                          <img
+                            :src="deploymentTaskIcon(task, block.world_mode)"
+                            class="benchmark-deployment-task-icon"
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            @error="onDeploymentTaskIconError"
+                          />
+                          <span class="benchmark-deployment-task-fallback" hidden>
+                            {{ benchmarkTaskShortTitle(task.key, block.world_mode) }}
+                          </span>
+                        </span>
+                      </th>
+                    </tr>
+                    <tr v-if="block.deployment_tasks.length">
+                      <template v-for="task in block.deployment_tasks" :key="block.world_mode + '-deployment-sub-' + task.key">
+                        <th class="benchmark-th-metric">SR</th>
+                        <th class="benchmark-th-metric">Q</th>
+                      </template>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, idx) in mergeBenchmarkRows(block)" :key="block.world_mode + '-row-' + idx + '-' + row.model">
+                      <td>{{ idx + 1 }}</td>
+                      <td :title="row.model">{{ row.model_short }}</td>
+                      <td>
+                        <span class="benchmark-item-cell benchmark-item-cell--rt" :title="row.exploration_rt_max_label">
+                          <img v-if="row.exploration_rt_max_icon" :src="row.exploration_rt_max_icon" class="benchmark-item-icon" alt="" loading="lazy" decoding="async" />
+                          <span class="benchmark-item-body">
+                            <span class="benchmark-item-label">{{ row.exploration_rt_max_label }}</span>
+                            <span v-if="formatExplorationSolvedInline(row.solved_display)" class="benchmark-exploration-solved">
+                              {{ formatExplorationSolvedInline(row.solved_display) }}
+                            </span>
+                          </span>
+                        </span>
+                      </td>
+                      <td>{{ row.exploration_q_max }}</td>
+                      <template v-for="task in block.deployment_tasks" :key="block.world_mode + '-cell-' + task.key + '-' + row.model">
+                        <td>{{ formatDeploymentSr(row.deployment?.[task.key]?.sr) }}</td>
+                        <td :class="{ 'benchmark-deployment-violation': row.deployment?.[task.key]?.limit_violation }">
+                          {{ formatDeploymentMeanQ(row.deployment?.[task.key]?.mean_q) }}
+                        </td>
+                      </template>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+          <section class="benchmark-human-panel">
+            <div class="benchmark-section-head">
+              <h3 class="benchmark-section-title"><i class="bi bi-people-fill"></i>By human</h3>
+              <span class="benchmark-section-meta">{{ benchmarkHumanRows.length }} players</span>
+            </div>
+            <div v-if="benchmarkHumanError" class="text-danger small">{{ benchmarkHumanError }}</div>
+            <div v-else-if="!benchmarkHumanRows.length" class="small text-muted">No human campaign runs yet for {{ benchmarkWorldModeLabel }}.</div>
+            <div v-else class="benchmark-human-wrap">
+              <table class="table table-theme table-sm benchmark-human-table mb-0">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Score</th>
+                    <th>Levels</th>
+                    <th>Steps</th>
+                    <th>Q</th>
+                    <th>Per level</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in benchmarkHumanRows"
+                    :key="`${row.rank}-${row.is_ai_operator ? 'ai' : 'human'}-${row.player_name}-${row.finished_at}`"
+                  >
+                    <td>{{ row.rank }}</td>
+                    <td>
+                      <span class="benchmark-human-player" :title="row.is_ai_operator && row.active_agent_model ? ('Best model: ' + row.active_agent_model) : ''">
+                        <img :src="benchmarkHumanAvatarSrc(row)" alt="" class="benchmark-human-avatar" />
+                        <span>{{ row.player_name }}</span>
+                        <span v-if="row.is_ai_operator" class="benchmark-human-ai-tag">AI</span>
+                      </span>
+                    </td>
+                    <td><strong>{{ row.score }}</strong></td>
+                    <td>{{ benchmarkHumanLevelsLabel(row) }}</td>
+                    <td>{{ benchmarkHumanStepsLabel(row) }}</td>
+                    <td>{{ benchmarkHumanQuestionsLabel(row) }}</td>
+                    <td class="benchmark-human-per-level" :title="benchmarkHumanPerLevelCell(row)">
+                      {{ benchmarkHumanPerLevelCell(row) || "—" }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </template>
+        </div>
+      </section>
+      <div class="content-grid">
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h3><i class="bi bi-pie-chart me-1"></i>Questions vs actions</h3>
+              <div class="subtitle">Totals aggregated; per-task charts compare each selected run (grouped bars + legend).</div>
+            </div>
+          </div>
+          <div class="stat-row" v-if="stats">
+            <div class="stat-chip">
+              <span class="badge rounded-pill bg-info me-1" style="width: 8px; height: 8px; padding: 0;"></span>
+              Questions:
+              <strong>{{ stats.total_questions }}</strong>
+              <span v-if="stats.question_pct != null">({{ stats.question_pct.toFixed(1) }}%)</span>
+            </div>
+            <div class="stat-chip">
+              <span class="badge rounded-pill bg-success me-1" style="width: 8px; height: 8px; padding: 0;"></span>
+              Actions:
+              <strong>{{ stats.total_actions }}</strong>
+              <span v-if="stats.action_pct != null">({{ stats.action_pct.toFixed(1) }}%)</span>
+            </div>
+            <div class="stat-chip">
+              Episodes:
+              <strong>{{ stats.total_episodes }}</strong>
+            </div>
+            <div class="stat-chip">
+              Steps:
+              <strong>{{ stats.total_steps }}</strong>
+            </div>
+            <div class="stat-chip" v-if="stats.total_database_records != null">
+              <span class="badge rounded-pill me-1" style="width: 8px; height: 8px; padding: 0; background: #f472b6;"></span>
+              DB records:
+              <strong>{{ stats.total_database_records }}</strong>
+              <span v-if="stats.total_database_updates">({{ stats.total_database_updates }} updates)</span>
+            </div>
+          </div>
+          <div class="card-bars-panel" v-if="stats">
+            <div>
+              <div class="chart-section-header">
+                <div class="chart-section-title mb-0">
+                  Action distribution
+                  <span v-if="stats.has_exo_trajectories" class="chart-section-hint ms-1">(exo-planet labels)</span>
+                </div>
+                <div class="chart-font-controls">
+                  <label class="chart-font-control" title="Axis labels">
+                    <i class="bi bi-text-left"></i>
+                    <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.actionDist.axis" @input="onChartFontChange('actionDist', 'axis', $event)" />
+                    <span>{{ chartFontSizes.actionDist.axis }}</span>
+                  </label>
+                </div>
+              </div>
+              <div class="chart-wrap chart-wrap-vbar" ref="actionDistWrap">
+                <canvas ref="actionDistChart" class="chart-canvas"></canvas>
+              </div>
+            </div>
+            <div v-if="stats.runs && stats.runs.length && stats.campaign_goals && stats.campaign_goals.length" class="chart-compare-block">
+              <div class="chart-compare-toolbar">
+                <label class="chart-toggle-control" title="Group trajectories with the same display name and show mean values per campaign task">
+                  <input type="checkbox" v-model="averageRunsByDisplayName" />
+                  Average by display name
+                </label>
+                <span v-if="averageRunsByDisplayName && duplicateRunNameCount > 0" class="chart-section-hint mb-0">
+                  {{ duplicateRunNameCount }} name{{ duplicateRunNameCount === 1 ? '' : 's' }} appear in multiple runs.
+                </span>
+              </div>
+              <div>
+              <div class="chart-section-header">
+                <div class="chart-section-title mb-0">Questions per campaign task (by run)</div>
+                <div class="chart-font-controls">
+                  <label class="chart-font-control" title="Axis labels">
+                    <i class="bi bi-text-left"></i>
+                    <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.questionsByGoal.axis" @input="onChartFontChange('questionsByGoal', 'axis', $event)" />
+                    <span>{{ chartFontSizes.questionsByGoal.axis }}</span>
+                  </label>
+                  <label class="chart-font-control" title="Legend">
+                    <i class="bi bi-fonts"></i>
+                    <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.questionsByGoal.legend" @input="onChartFontChange('questionsByGoal', 'legend', $event)" />
+                    <span>{{ chartFontSizes.questionsByGoal.legend }}</span>
+                  </label>
+                </div>
+              </div>
+              <div class="chart-section-hint" v-if="stats.runs.length === 1">One run selected — select another trajectory to compare side by side.</div>
+              <div class="chart-wrap chart-wrap-compare" ref="questionsByGoalWrap">
+                <canvas ref="questionsByGoalChart" class="chart-canvas"></canvas>
+              </div>
+              </div>
+              <div>
+              <div class="chart-section-header">
+                <div class="chart-section-title mb-0">Knowledge DB records per task (by run)</div>
+                <div class="chart-font-controls">
+                  <label class="chart-font-control" title="Axis labels">
+                    <i class="bi bi-text-left"></i>
+                    <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.databaseByGoal.axis" @input="onChartFontChange('databaseByGoal', 'axis', $event)" />
+                    <span>{{ chartFontSizes.databaseByGoal.axis }}</span>
+                  </label>
+                  <label class="chart-font-control" title="Legend">
+                    <i class="bi bi-fonts"></i>
+                    <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.databaseByGoal.legend" @input="onChartFontChange('databaseByGoal', 'legend', $event)" />
+                    <span>{{ chartFontSizes.databaseByGoal.legend }}</span>
+                  </label>
+                </div>
+              </div>
+              <div class="chart-wrap chart-wrap-compare" ref="databaseByGoalWrap">
+                <canvas ref="databaseByGoalChart" class="chart-canvas"></canvas>
+              </div>
+              </div>
+            </div>
+          </div>
+          <div v-if="!stats && !statsError" class="empty-state">
+            Select one or more trajectories on the left to see question vs action behaviour.
+          </div>
+          <div v-if="statsError" class="text-danger small mt-1">{{ statsError }}</div>
+        </section>
+        <section class="card card-right-panel">
+          <div class="donut-block" v-if="stats">
+            <div class="chart-section-header" style="align-self: stretch;">
+              <h4 style="margin: 0;"><i class="bi bi-pie-chart me-1"></i>Questions vs actions</h4>
+              <div class="chart-font-controls">
+                <label class="chart-font-control" title="Legend">
+                  <i class="bi bi-fonts"></i>
+                  <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.qa.legend" @input="onChartFontChange('qa', 'legend', $event)" />
+                  <span>{{ chartFontSizes.qa.legend }}</span>
+                </label>
+              </div>
+            </div>
+            <div class="chart-wrap chart-wrap-donut">
+              <canvas ref="qaChart" class="chart-canvas"></canvas>
+            </div>
+          </div>
+          <div>
+            <div class="card-header">
+              <div>
+                <h3><i class="bi bi-activity me-1"></i>Episode dynamics</h3>
+                <div class="subtitle">Actions and answer lengths per episode.</div>
+              </div>
+            </div>
+            <div class="stat-row" v-if="stats">
+              <div class="stat-chip">
+                Mean actions / episode:
+                <strong>{{ stats.mean_actions_per_episode.toFixed(2) }}</strong>
+              </div>
+              <div class="stat-chip">
+                Mean answer length:
+                <strong>{{ stats.mean_answer_len_chars.toFixed(1) }}</strong> chars
+              </div>
+            </div>
+            <div class="episode-charts" v-if="stats">
+              <div>
+                <div class="chart-section-header">
+                  <div class="chart-section-title mb-0">Actions per episode</div>
+                  <div class="chart-font-controls">
+                    <label class="chart-font-control" title="Axis labels">
+                      <i class="bi bi-text-left"></i>
+                      <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.actions.axis" @input="onChartFontChange('actions', 'axis', $event)" />
+                      <span>{{ chartFontSizes.actions.axis }}</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="chart-wrap chart-wrap-vbar" ref="actionsChartWrap">
+                  <canvas ref="actionsChart" class="chart-canvas"></canvas>
+                </div>
+              </div>
+              <div>
+                <div class="chart-section-header">
+                  <div class="chart-section-title mb-0">Answer length per episode</div>
+                  <div class="chart-font-controls">
+                    <label class="chart-font-control" title="Axis labels">
+                      <i class="bi bi-text-left"></i>
+                      <input type="range" :min="CHART_FONT_MIN" :max="CHART_FONT_MAX" :value="chartFontSizes.length.axis" @input="onChartFontChange('length', 'axis', $event)" />
+                      <span>{{ chartFontSizes.length.axis }}</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="chart-wrap chart-wrap-vbar" ref="lengthChartWrap">
+                  <canvas ref="lengthChart" class="chart-canvas"></canvas>
+                </div>
+              </div>
+            </div>
+            <div v-if="!stats && !statsError" class="empty-state">
+              After you collect a few trajectories, this panel will summarize how verbose and action-heavy they are.
+            </div>
+          </div>
+        </section>
+      </div>
+      <div v-if="historyVisible" class="history-backdrop" @click.self="closeHistory">
+        <div class="history-modal">
+          <div class="history-header">
+            <div>
+              <h2 class="history-title">
+                <i class="bi bi-file-earmark-text me-1"></i>
+                Short trajectory history
+              </h2>
+              <div class="small text-muted">
+                {{ historyTitle }} — steps: {{ historySteps.length }} (loading: {{ historyLoading }})
+              </div>
+            </div>
+            <button type="button" class="history-close-btn" @click="closeHistory">
+              <i class="bi bi-x-lg"></i>
+              Close
+            </button>
+          </div>
+          <div class="history-body">
+            <div v-if="historyLoading" class="small text-muted">
+              Loading trajectory history…
+            </div>
+            <div v-else-if="historyError" class="small text-danger">
+              {{ historyError }}
+            </div>
+            <div v-else>
+              <div class="small text-muted mb-2">
+                Steps loaded: <strong>{{ historySteps.length }}</strong>
+              </div>
+              <div v-if="!historySteps.length" class="small text-muted">
+                No steps recorded in this trajectory yet.
+              </div>
+              <template v-else>
+                <div v-for="(s, idx) in historySteps" :key="idx" class="history-step">
+                  <div class="history-step-header">
+                    <span class="history-badge">
+                      Step {{ idx + 1 }}
+                    </span>
+                  </div>
+                  <div v-if="s.observation" class="mb-1">
+                    <div class="history-label">Observation</div>
+                    <div class="history-block">
+                      {{ s.observation }}
+                    </div>
+                  </div>
+                  <div v-if="s.reasoning" class="mb-1">
+                    <div class="history-label">Agent reasoning</div>
+                    <div class="history-block">
+                      {{ s.reasoning }}
+                    </div>
+                  </div>
+                  <div v-if="s.action || s.question" class="mb-1">
+                    <div class="history-label">Agent action / question</div>
+                    <div class="history-block">
+                      <span v-if="s.action"><strong>Action:</strong> {{ s.action }}</span>
+                      <span v-if="s.action && s.question"><br /></span>
+                      <span v-if="s.question"><strong>Question:</strong> {{ s.question }}</span>
+                    </div>
+                  </div>
+                  <div v-if="s.operator_answer" class="mb-1">
+                    <div class="history-label">Operator / oracle answer</div>
+                    <div class="history-block">
+                      {{ s.operator_answer }}
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="playVisible" class="history-backdrop" @click.self="closePlayMode">
+        <div class="history-modal play-modal">
+          <div class="history-header">
+            <div>
+              <h2 class="history-title">
+                <i class="bi bi-play-circle me-1"></i>
+                Trajectory play mode
+              </h2>
+              <div class="small text-muted">
+                {{ playTitle }} — step {{ Math.min(playStepIndex + 1, playSteps.length || 1) }} / {{ playSteps.length }} (loading: {{ playLoading }})
+              </div>
+            </div>
+            <button type="button" class="history-close-btn" @click="closePlayMode">
+              <i class="bi bi-x-lg"></i>
+              Close
+            </button>
+          </div>
+          <div class="play-controls">
+            <button class="btn btn-outline-accent btn-sm py-0 px-2" type="button" @click="prevPlayStep" :disabled="!playSteps.length">
+              <i class="bi bi-skip-backward"></i>
+            </button>
+            <button class="btn btn-outline-accent btn-sm py-0 px-2" type="button" @click="togglePlay" :disabled="!playSteps.length">
+              <i :class="playRunning ? 'bi bi-pause-fill' : 'bi bi-play-fill'"></i>
+            </button>
+            <button class="btn btn-outline-accent btn-sm py-0 px-2" type="button" @click="nextPlayStep" :disabled="!playSteps.length">
+              <i class="bi bi-skip-forward"></i>
+            </button>
+            <label class="small text-muted">Speed (sec):</label>
+            <input class="play-speed-input" type="number" min="0.1" step="0.1" v-model.number="playSpeedSec" />
+            <button class="btn btn-outline-accent btn-sm py-0 px-2" type="button" @click="playStepIndex = 0" :disabled="!playSteps.length">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Restart
+            </button>
+          </div>
+          <div class="play-layout">
+            <section class="play-panel">
+              <h3 class="play-panel-title">{{ playObservationTitle }}</h3>
+              <img v-if="currentPlayStep.observation_image"
+                   :src="currentPlayStep.observation_image"
+                   :alt="playObservationTitle"
+                   class="play-observation-image" />
+              <div v-else-if="currentPlayGrid.rows.length" class="tile-grid" :style="{ '--cols': currentPlayGrid.cols }">
+                <div v-for="(cell, idx) in currentPlayGrid.cells"
+                     :key="`tile-${idx}`"
+                     class="tile-cell"
+                     :style="{ background: cell.bg }"
+                     :title="cell.label">
+                  {{ cell.text }}
+                </div>
+              </div>
+              <pre v-else class="play-text">{{ currentPlayStep.observation || 'No observation text for this step.' }}</pre>
+              <h3 class="play-panel-title">Agent thoughts</h3>
+              <pre class="play-text">{{ currentPlayStep.reasoning || 'No reasoning for this step.' }}</pre>
+            </section>
+            <section class="play-panel">
+              <h3 class="play-panel-title">Dialog</h3>
+              <div ref="dialogComicRef" class="dialog-comic">
+                <template v-if="currentPlayDialogEntries.length">
+                  <div v-for="entry in currentPlayDialogEntries"
+                       :key="entry.id"
+                       v-show="entry.role !== 'operator' || operatorBubbleVisible"
+                       class="comic-bubble"
+                       :class="entry.role === 'agent' ? 'comic-bubble-agent' : 'comic-bubble-operator'">
+                    <div class="comic-label">{{ entry.timeLabel ? `${entry.label} · ${entry.timeLabel}` : entry.label }}</div>
+                    <div v-if="entry.role === 'operator' && operatorReadAcknowledged && entry.id === lastOperatorEntryId" class="comic-label">👁 Agent read</div>
+                    <div>
+                      {{ renderedDialogText(entry) }}<span v-if="showTypingCaret(entry)" class="type-caret">|</span>
+                    </div>
+                  </div>
+                </template>
+                <div v-else class="small text-muted">No dialog for this step.</div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    function readDashCssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+    function applyChartDefaults() {
+      if (typeof Chart === 'undefined') return;
+      Chart.defaults.color = readDashCssVar('--chart-tick');
+      Chart.defaults.font = { size: 13 };
+      Chart.defaults.borderColor = readDashCssVar('--chart-grid');
+      Chart.defaults.plugins.legend.labels.color = readDashCssVar('--chart-legend');
+      Chart.defaults.plugins.legend.labels.font = { size: 14 };
+      Chart.defaults.plugins.tooltip.backgroundColor = readDashCssVar('--chart-tooltip-bg');
+      Chart.defaults.plugins.tooltip.titleColor = readDashCssVar('--chart-tooltip-title');
+      Chart.defaults.plugins.tooltip.bodyColor = readDashCssVar('--chart-tooltip-body');
+      Chart.defaults.plugins.tooltip.borderColor = readDashCssVar('--chart-tooltip-border');
+      Chart.defaults.plugins.tooltip.borderWidth = 1;
+    }
+    applyChartDefaults();
+  </script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="./js/play-session.js"></script>
+  <script>
+    const { createApp, ref, onMounted, watch, nextTick, computed, onBeforeUnmount } = Vue;
+
+    createApp({
+      setup() {
+        const apiBase = window.PlayWebSession?.resolveApiBase?.() || "http://127.0.0.1:8001/api";
+
+        const items = ref([]);
+        const loading = ref(false);
+        const error = ref('');
+        const selectedIds = ref([]);
+        let themeMediaQuery = null;
+        const themePref = ref(window.PlayWebTheme?.getStoredThemePref?.() || 'system');
+
+        const editingId = ref(null);
+        const editingName = ref('');
+        const renameInput = ref(null);
+
+        const stats = ref(null);
+        const statsError = ref('');
+        const campaignBenchmark = ref(null);
+        const campaignBenchmarkError = ref('');
+        const benchmarkHumanRowsRaw = ref([]);
+        const benchmarkHumanError = ref('');
+        const benchmarkSince = ref(window.PlayWebBenchmark?.loadBenchmarkSince?.() || '');
+        const benchmarkSinceApplied = ref('');
+        const benchmarkWorldMode = ref(
+          window.PlayWebBenchmark?.loadBenchmarkWorldMode?.() || 'exo-planet'
+        );
+        const benchmarkPanelCollapsed = ref(
+          window.PlayWebBenchmark?.loadBenchmarkPanelCollapsed?.() || false
+        );
+        const averageRunsByDisplayName = ref(false);
+
+        const BENCHMARK_AI_AVATAR_SRC = './assets/talkingheads-avatar.png';
+        const BENCHMARK_TASK_ORDER = [
+          'collect_wood', 'place_table', 'make_wood_pickaxe', 'collect_stone', 'make_stone_pickaxe',
+          'collect_coal', 'collect_iron', 'make_furnace', 'make_iron_pickaxe', 'collect_diamond',
+        ];
+        const BENCHMARK_TASK_SHORT_TITLES = {
+          craftax: {
+            collect_wood: 'Wood', place_table: 'Table', make_wood_pickaxe: 'Wood pick',
+            collect_stone: 'Stone', make_stone_pickaxe: 'Stone pick', collect_coal: 'Coal',
+            collect_iron: 'Iron', make_furnace: 'Furnace', make_iron_pickaxe: 'Iron pick', collect_diamond: 'Diamond',
+          },
+          'exo-planet': {
+            collect_wood: 'Biomass', place_table: 'Replicator', make_wood_pickaxe: 'Bone drill',
+            collect_stone: 'Basalt', make_stone_pickaxe: 'Rock drill', collect_coal: 'Energy ore',
+            collect_iron: 'Titanite', make_furnace: 'Thermal oven', make_iron_pickaxe: 'Titan drill', collect_diamond: 'Core ore',
+          },
+        };
+
+        const benchmarkWorldModeLabel = computed(() =>
+          benchmarkWorldMode.value === 'exo-planet' ? 'Exo-Planet' : 'Craftax'
+        );
+
+        function benchmarkTaskShortTitle(taskKey, worldMode) {
+          const key = String(taskKey || '').trim();
+          const mode = String(worldMode || 'craftax').toLowerCase() === 'exo-planet' ? 'exo-planet' : 'craftax';
+          return BENCHMARK_TASK_SHORT_TITLES[mode]?.[key] || key.replaceAll('_', ' ');
+        }
+
+        function deploymentTaskIcon(task, worldMode) {
+          const icon = String(task?.icon || '').trim();
+          if (icon) return icon;
+          const key = String(task?.key || '').trim();
+          if (!key) return '';
+          const theme = String(worldMode || 'craftax').toLowerCase() === 'exo-planet' ? 'exo-planet' : 'craftax';
+          return `./assets/benchmark/${theme}/${key}.png`;
+        }
+
+        function onDeploymentTaskIconError(event) {
+          const img = event?.target;
+          if (!(img instanceof HTMLImageElement)) return;
+          img.style.display = 'none';
+          const fallback = img.parentElement?.querySelector('.benchmark-deployment-task-fallback');
+          if (fallback) fallback.hidden = false;
+        }
+
+        function benchmarkHumanAvatarSrc(row) {
+          if (row?.is_ai_operator) return BENCHMARK_AI_AVATAR_SRC;
+          return avatarSrcFor(row?.player_avatar_id);
+        }
+
+        function benchmarkHumanLevelsLabel(row) {
+          const completed = Number(row?.phase1_completed_levels || 0);
+          const total = Number(row?.total_levels || 0);
+          return total > 0 ? `${completed}/${total}` : String(completed);
+        }
+
+        function benchmarkHumanStepsLabel(row) {
+          const steps = Number(row?.agent_steps || 0);
+          return steps > 0 ? String(steps) : '—';
+        }
+
+        function benchmarkHumanQuestionsLabel(row) {
+          const questions = Number(row?.questions || 0);
+          return questions > 0 ? String(questions) : '—';
+        }
+
+        function benchmarkHumanPerLevelCell(row) {
+          const levelSteps = row?.level_steps;
+          if (!levelSteps || typeof levelSteps !== 'object') return '';
+          const worldMode = row.world_mode;
+          return BENCHMARK_TASK_ORDER
+            .filter((key) => Object.prototype.hasOwnProperty.call(levelSteps, key))
+            .map((key) => `${benchmarkTaskShortTitle(key, worldMode)} ${Number(levelSteps[key] || 0)}`)
+            .join(' · ');
+        }
+
+        function filterHumanRowsSince(rows, sinceDate) {
+          const raw = String(sinceDate || '').trim();
+          if (!raw) return rows;
+          const cutoff = Date.parse(`${raw}T00:00:00.000Z`);
+          if (!Number.isFinite(cutoff)) return rows;
+          return rows.filter((row) => {
+            const ts = Date.parse(String(row.finished_at || ''));
+            return !Number.isFinite(ts) || ts >= cutoff;
+          });
+        }
+
+        const benchmarkHumanRows = computed(() => {
+          const filtered = filterHumanRowsSince(benchmarkHumanRowsRaw.value, benchmarkSince.value);
+          return filtered.map((row, idx) => ({ ...row, rank: idx + 1 }));
+        });
+
+        const benchmarkModeBlocks = computed(() => {
+          const modes = campaignBenchmark.value;
+          if (!modes) return [];
+          const allBlocks = [
+            {
+              world_mode: "craftax",
+              title: "Craftax",
+              ...(modes.craftax || {}),
+              extended: Array.isArray(modes.craftax?.extended) ? modes.craftax.extended : [],
+              compact: Array.isArray(modes.craftax?.compact) ? modes.craftax.compact : [],
+              deployment_tasks: Array.isArray(modes.craftax?.deployment_tasks) ? modes.craftax.deployment_tasks : [],
+              exploration_runs: Number(modes.craftax?.exploration_runs || 0),
+            },
+            {
+              world_mode: "exo-planet",
+              title: "Exo-Planet",
+              ...(modes["exo-planet"] || {}),
+              extended: Array.isArray(modes["exo-planet"]?.extended) ? modes["exo-planet"].extended : [],
+              compact: Array.isArray(modes["exo-planet"]?.compact) ? modes["exo-planet"].compact : [],
+              deployment_tasks: Array.isArray(modes["exo-planet"]?.deployment_tasks) ? modes["exo-planet"].deployment_tasks : [],
+              exploration_runs: Number(modes["exo-planet"]?.exploration_runs || 0),
+            },
+          ];
+          return allBlocks.filter((block) => block.world_mode === benchmarkWorldMode.value);
+        });
+
+        function setBenchmarkWorldMode(mode) {
+          const next = mode === 'exo-planet' ? 'exo-planet' : 'craftax';
+          benchmarkWorldMode.value = next;
+          window.PlayWebBenchmark?.saveBenchmarkWorldMode?.(next);
+          loadBenchmarkHumanLeaderboard();
+        }
+
+        function toggleBenchmarkPanel() {
+          benchmarkPanelCollapsed.value = !benchmarkPanelCollapsed.value;
+          window.PlayWebBenchmark?.saveBenchmarkPanelCollapsed?.(benchmarkPanelCollapsed.value);
+        }
+
+        function formatDeploymentSr(sr) {
+          const value = Number(sr);
+          if (!Number.isFinite(value) || value <= 0) return "—";
+          return `${Math.round(value * 100)}%`;
+        }
+
+        function formatDeploymentMeanQ(meanQ) {
+          const value = Number(meanQ);
+          if (!Number.isFinite(value)) return "—";
+          if (Math.abs(value - Math.round(value)) < 1e-6) return String(Math.round(value));
+          return value.toFixed(1);
+        }
+
+        function formatExplorationSolvedInline(solvedDisplay) {
+          const raw = String(solvedDisplay || '').trim();
+          if (!raw || raw === '—') return '';
+          const parts = raw.split('/');
+          if (parts.length !== 2) return raw;
+          return `${parts[0].trim()} / ${parts[1].trim()}`;
+        }
+
+        function mergeBenchmarkRows(block) {
+          const normalizeRow = window.PlayWebBenchmark?.normalizeBenchmarkExtendedRow
+            || ((row) => row);
+          const compactByModel = {};
+          for (const row of block?.compact || []) {
+            compactByModel[row.model] = row;
+          }
+          const extended = Array.isArray(block?.extended) ? block.extended : [];
+          if (extended.length) {
+            return extended.map((row) => {
+              const compact = compactByModel[row.model] || {};
+              return normalizeRow({
+                ...row,
+                model_short: row.model_short || compact.model_short || row.model,
+                solved_display: compact.solved_display || '—',
+              });
+            });
+          }
+          return (block?.compact || []).map((row) => normalizeRow({
+            model: row.model,
+            model_short: row.model_short,
+            solved_display: row.solved_display,
+            exploration_rt_max_label: row.max_item_label || '—',
+            exploration_rt_max_icon: row.max_item_icon || '',
+            exploration_q_max: '—',
+            deployment: {},
+          }));
+        }
+
+        async function loadBenchmarkHumanLeaderboard() {
+          benchmarkHumanError.value = '';
+          try {
+            const params = new URLSearchParams({
+              game_kind: 'craftax',
+              world_mode: benchmarkWorldMode.value,
+              limit: '50',
+            });
+            const resp = await fetch(`${apiBase}/human_leaderboard?${params.toString()}`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            benchmarkHumanRowsRaw.value = Array.isArray(data.rows) ? data.rows : [];
+          } catch (e) {
+            console.error('Failed to load human leaderboard', e);
+            benchmarkHumanError.value = 'Failed to load human leaderboard.';
+            benchmarkHumanRowsRaw.value = [];
+          }
+        }
+
+        async function loadCampaignBenchmark() {
+          campaignBenchmarkError.value = "";
+          const humanPromise = loadBenchmarkHumanLeaderboard();
+          try {
+            const url = window.PlayWebBenchmark?.buildCampaignBenchmarkUrl?.(
+              apiBase,
+              benchmarkSince.value
+            ) || `${apiBase}/campaign_benchmark`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            campaignBenchmark.value = window.PlayWebBenchmark
+              ?.normalizeCampaignBenchmarkPayload?.(data)?.world_modes || data.world_modes || {};
+            benchmarkSinceApplied.value = data.since ? String(data.since).slice(0, 10) : "";
+            await humanPromise;
+          } catch (e) {
+            console.error("Failed to load campaign benchmark", e);
+            campaignBenchmarkError.value = "Failed to load campaign benchmark.";
+            campaignBenchmark.value = null;
+            benchmarkSinceApplied.value = "";
+            await humanPromise;
+          }
+        }
+
+        function onBenchmarkSinceChange() {
+          window.PlayWebBenchmark?.saveBenchmarkSince?.(benchmarkSince.value);
+          loadCampaignBenchmark();
+        }
+
+        function clearBenchmarkSince() {
+          benchmarkSince.value = "";
+          window.PlayWebBenchmark?.saveBenchmarkSince?.("");
+          loadCampaignBenchmark();
+        }
+
+        const qaChart = ref(null);
+        const actionsChart = ref(null);
+        const actionsChartWrap = ref(null);
+        const lengthChart = ref(null);
+        const lengthChartWrap = ref(null);
+        const actionDistChart = ref(null);
+        const actionDistWrap = ref(null);
+        const questionsByGoalChart = ref(null);
+        const questionsByGoalWrap = ref(null);
+        const databaseByGoalChart = ref(null);
+        const databaseByGoalWrap = ref(null);
+        const CHART_FONT_MIN = 8;
+        const CHART_FONT_MAX = 22;
+        const chartFontSizes = ref({
+          actionDist: { axis: 13 },
+          questionsByGoal: { axis: 13, legend: 14 },
+          databaseByGoal: { axis: 13, legend: 14 },
+          qa: { legend: 13 },
+          actions: { axis: 13 },
+          length: { axis: 13 },
+        });
+        const RUN_CHART_COLORS = [
+          { bg: 'rgba(56, 189, 248, 0.85)', border: 'rgba(56, 189, 248, 1)' },
+          { bg: 'rgba(251, 191, 36, 0.85)', border: 'rgba(251, 191, 36, 1)' },
+          { bg: 'rgba(167, 139, 250, 0.85)', border: 'rgba(167, 139, 250, 1)' },
+          { bg: 'rgba(52, 211, 153, 0.85)', border: 'rgba(52, 211, 153, 1)' },
+          { bg: 'rgba(244, 114, 182, 0.85)', border: 'rgba(244, 114, 182, 1)' },
+          { bg: 'rgba(248, 113, 113, 0.85)', border: 'rgba(248, 113, 113, 1)' },
+        ];
+
+        function chartScaleColors(axisSize = 13) {
+          const colors = window.PlayWebTheme?.chartThemeColors?.() || {};
+          const tick = colors.tick || readDashCssVar('--chart-tick');
+          const grid = colors.grid || readDashCssVar('--chart-grid');
+          return {
+            x: {
+              ticks: { color: tick, font: { size: axisSize } },
+              grid: { color: grid },
+            },
+            y: {
+              ticks: { color: tick, font: { size: axisSize, weight: '500' } },
+              grid: { color: grid },
+            },
+          };
+        }
+
+        function chartLegend(show, legendSize = 14) {
+          const legend = window.PlayWebTheme?.chartThemeColors?.()?.legend || readDashCssVar('--chart-legend');
+          return {
+            display: show,
+            position: 'bottom',
+            labels: {
+              color: legend,
+              padding: 12,
+              font: { size: legendSize },
+              usePointStyle: true,
+              pointStyle: 'rectRounded',
+            },
+          };
+        }
+
+        function destroyChartInstances() {
+          for (const inst of [
+            qaChartInstance,
+            actionsChartInstance,
+            lengthChartInstance,
+            actionDistChartInstance,
+            questionsByGoalChartInstance,
+            databaseByGoalChartInstance,
+          ]) {
+            if (inst) inst.destroy();
+          }
+          qaChartInstance = null;
+          actionsChartInstance = null;
+          lengthChartInstance = null;
+          actionDistChartInstance = null;
+          questionsByGoalChartInstance = null;
+          databaseByGoalChartInstance = null;
+        }
+
+        function setThemePref(pref) {
+          themePref.value = pref;
+          window.PlayWebTheme?.setStoredThemePref?.(pref);
+          window.PlayWebTheme?.applyTheme?.(pref);
+          applyChartDefaults();
+          destroyChartInstances();
+          nextTick(updateCharts);
+        }
+
+        function applyChartFontSizes(instance, sizes, { hasAxes = true, hasLegend = false } = {}) {
+          if (!instance?.options) return false;
+          let changed = false;
+          if (hasAxes && sizes.axis != null) {
+            const axisSize = Number(sizes.axis);
+            for (const axisId of ['x', 'y']) {
+              const scale = instance.options.scales?.[axisId];
+              if (!scale) continue;
+              scale.ticks = scale.ticks || {};
+              const prevFont = scale.ticks.font;
+              scale.ticks.font = typeof prevFont === 'object' && prevFont
+                ? { ...prevFont, size: axisSize }
+                : { size: axisSize };
+              changed = true;
+            }
+          }
+          if (hasLegend && sizes.legend != null) {
+            const legendSize = Number(sizes.legend);
+            instance.options.plugins = instance.options.plugins || {};
+            instance.options.plugins.legend = instance.options.plugins.legend || {};
+            instance.options.plugins.legend.labels = instance.options.plugins.legend.labels || {};
+            const prevFont = instance.options.plugins.legend.labels.font;
+            instance.options.plugins.legend.labels.font = typeof prevFont === 'object' && prevFont
+              ? { ...prevFont, size: legendSize }
+              : { size: legendSize };
+            changed = true;
+          }
+          if (changed) instance.update();
+          return changed;
+        }
+
+        function onChartFontChange(chartKey, field, evt) {
+          const value = Number(evt?.target?.value);
+          if (!Number.isFinite(value)) return;
+          const bucket = chartFontSizes.value[chartKey];
+          if (bucket && field) bucket[field] = value;
+          const sizes = chartFontSizes.value[chartKey];
+          if (!sizes) return;
+          const instanceByKey = {
+            actionDist: actionDistChartInstance,
+            questionsByGoal: questionsByGoalChartInstance,
+            databaseByGoal: databaseByGoalChartInstance,
+            qa: qaChartInstance,
+            actions: actionsChartInstance,
+            length: lengthChartInstance,
+          };
+          const metaByKey = {
+            actionDist: { hasAxes: true, hasLegend: false },
+            questionsByGoal: { hasAxes: true, hasLegend: true },
+            databaseByGoal: { hasAxes: true, hasLegend: true },
+            qa: { hasAxes: false, hasLegend: true },
+            actions: { hasAxes: true, hasLegend: false },
+            length: { hasAxes: true, hasLegend: false },
+          };
+          const instance = instanceByKey[chartKey];
+          const meta = metaByKey[chartKey];
+          if (!applyChartFontSizes(instance, sizes, meta)) {
+            nextTick(updateCharts);
+          }
+        }
+
+        function goalMetric(run, goal, field) {
+          const rows = Array.isArray(run.by_goal) ? run.by_goal : [];
+          const row = rows.find((r) => r.goal === goal);
+          return row ? Number(row[field] || 0) : 0;
+        }
+
+        function runDisplayName(run, idx) {
+          const name = String(run?.display_name || '').trim();
+          return name || `Run ${idx + 1}`;
+        }
+
+        function averageRunsByDisplayNameList(runs, campaignGoals) {
+          if (!Array.isArray(runs) || !runs.length) return [];
+          const order = [];
+          const groups = new Map();
+          runs.forEach((run, idx) => {
+            const name = runDisplayName(run, idx);
+            if (!groups.has(name)) {
+              groups.set(name, []);
+              order.push(name);
+            }
+            groups.get(name).push(run);
+          });
+          return order.map((name) => {
+            const groupRuns = groups.get(name);
+            const count = groupRuns.length;
+            const by_goal = campaignGoals.map((goal) => {
+              let questionsSum = 0;
+              let databaseSum = 0;
+              for (const run of groupRuns) {
+                questionsSum += goalMetric(run, goal, 'questions');
+                databaseSum += goalMetric(run, goal, 'database_records');
+              }
+              return {
+                goal,
+                questions: count ? questionsSum / count : 0,
+                database_records: count ? databaseSum / count : 0,
+              };
+            });
+            return {
+              display_name: count > 1 ? `${name} (avg, n=${count})` : name,
+              by_goal,
+            };
+          });
+        }
+
+        function prepareRunsForComparisonChart(runs, campaignGoals) {
+          if (!Array.isArray(runs) || !runs.length) return [];
+          if (!averageRunsByDisplayName.value) return runs;
+          return averageRunsByDisplayNameList(runs, campaignGoals);
+        }
+
+        const duplicateRunNameCount = computed(() => {
+          const runs = Array.isArray(stats.value?.runs) ? stats.value.runs : [];
+          if (runs.length < 2) return 0;
+          const counts = new Map();
+          runs.forEach((run, idx) => {
+            const name = runDisplayName(run, idx);
+            counts.set(name, (counts.get(name) || 0) + 1);
+          });
+          let duplicateNames = 0;
+          for (const count of counts.values()) {
+            if (count > 1) duplicateNames += 1;
+          }
+          return duplicateNames;
+        });
+
+        function setBarChartWrapHeight(wrapEl, opts = {}) {
+          if (!wrapEl) return;
+          const h = opts.height ?? 260;
+          wrapEl.style.minHeight = `${h}px`;
+          wrapEl.style.height = `${h}px`;
+          if (opts.minWidth) {
+            wrapEl.style.minWidth = `${opts.minWidth}px`;
+          } else {
+            wrapEl.style.minWidth = '';
+          }
+        }
+
+        function renderBarChart(canvasEl, instance, data, options) {
+          if (instance) {
+            instance.destroy();
+          }
+          if (!canvasEl) return null;
+          const merged = { ...options };
+          delete merged.indexAxis;
+          return new Chart(canvasEl.getContext('2d'), {
+            type: 'bar',
+            data,
+            options: merged,
+          });
+        }
+
+        function verticalBarOptions({
+          showLegend = false,
+          tooltipLabel,
+          yStep = null,
+          axisFontSize = 13,
+          legendFontSize = 14,
+        } = {}) {
+          const scales = chartScaleColors(axisFontSize);
+          const yScale = { ...scales.y, beginAtZero: true };
+          if (yStep != null) {
+            yScale.ticks = {
+              ...scales.y.ticks,
+              stepSize: yStep,
+              precision: 0,
+            };
+          }
+          return {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { bottom: 4 } },
+            datasets: {
+              bar: {
+                categoryPercentage: 0.72,
+                barPercentage: 0.85,
+              },
+            },
+            plugins: {
+              legend: chartLegend(showLegend, legendFontSize),
+              tooltip: {
+                callbacks: {
+                  label(context) {
+                    const value = context.parsed.y ?? 0;
+                    if (tooltipLabel) return tooltipLabel(context, value);
+                    const name = context.label || context.dataset.label;
+                    return `${name}: ${value}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                ...scales.x,
+                ticks: {
+                  ...scales.x.ticks,
+                  maxRotation: 50,
+                  minRotation: 35,
+                  autoSkip: false,
+                },
+              },
+              y: yScale,
+            },
+          };
+        }
+
+        function buildRunGoalComparisonChart({
+          canvasEl,
+          wrapEl,
+          instance,
+          runs,
+          campaignGoals,
+          metric,
+          datasetLabel,
+          chartKey,
+          valueDecimals = 0,
+        }) {
+          if (!canvasEl || !runs.length || !campaignGoals.length) {
+            return instance;
+          }
+          const goalCount = campaignGoals.length;
+          const runCount = runs.length;
+          setBarChartWrapHeight(wrapEl, {
+            height: runCount > 1 ? 280 : 260,
+            minWidth: Math.max(320, goalCount * (runCount > 1 ? 72 : 56)),
+          });
+          const labels = campaignGoals.map((g) => String(g));
+          const datasets = runs.map((run, idx) => {
+            const palette = RUN_CHART_COLORS[idx % RUN_CHART_COLORS.length];
+            const name = run.display_name || `Run ${idx + 1}`;
+            return {
+              label: name,
+              data: labels.map((goal) => goalMetric(run, goal, metric)),
+              backgroundColor: palette.bg,
+              borderColor: palette.border,
+              borderWidth: 1,
+              borderRadius: 3,
+            };
+          });
+          const showLegend = runs.length > 1;
+          const fontSizes = chartFontSizes.value[chartKey] || {};
+          const options = verticalBarOptions({
+            showLegend,
+            yStep: valueDecimals > 0 ? null : 1,
+            axisFontSize: fontSizes.axis ?? 13,
+            legendFontSize: fontSizes.legend ?? 14,
+            tooltipLabel: (context, value) =>
+              `${context.dataset.label}: ${Number(value).toFixed(valueDecimals)}`,
+          });
+          options.datasets.bar.categoryPercentage = runs.length > 1 ? 0.65 : 0.55;
+          options.datasets.bar.barPercentage = runs.length > 1 ? 0.9 : 0.75;
+          const chartData = { labels, datasets };
+          return renderBarChart(canvasEl, instance, chartData, options);
+        }
+        let qaChartInstance = null;
+        let actionsChartInstance = null;
+        let lengthChartInstance = null;
+        let actionDistChartInstance = null;
+        let questionsByGoalChartInstance = null;
+        let databaseByGoalChartInstance = null;
+
+        const historyVisible = ref(false);
+        const historyLoading = ref(false);
+        const historyError = ref('');
+        const historyTitle = ref('');
+        const historySteps = ref([]);
+        const playVisible = ref(false);
+        const playLoading = ref(false);
+        const playError = ref('');
+        const playTitle = ref('');
+        const playWorldMode = ref('craftax');
+        const playSteps = ref([]);
+        const playDialogTimeline = ref([]);
+        const playStepIndex = ref(0);
+        const playRunning = ref(false);
+        const playSpeedSec = ref(0.5);
+        const typedAgentQuestion = ref('');
+        const typingAgentQuestionDone = ref(false);
+        const operatorBubbleVisible = ref(true);
+        const operatorReadAcknowledged = ref(false);
+        const lastAgentQuestionText = ref('');
+        let playTimer = null;
+        let typingTimer = null;
+        let operatorRevealTimer = null;
+        let operatorReadTimer = null;
+
+        async function loadTrajectories() {
+          loading.value = true;
+          error.value = '';
+          try {
+            const resp = await fetch(`${apiBase}/trajectories`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            items.value = Array.isArray(data.items) ? data.items : [];
+          } catch (e) {
+            console.error('Failed to load trajectories', e);
+            error.value = 'Failed to load trajectories from server.';
+          } finally {
+            loading.value = false;
+          }
+        }
+
+        function toggleSelect(id, evt) {
+          const multi = evt && (evt.ctrlKey || evt.metaKey || evt.shiftKey);
+          const current = selectedIds.value.slice();
+          const idx = current.indexOf(id);
+          if (multi) {
+            if (idx >= 0) current.splice(idx, 1);
+            else current.push(id);
+          } else {
+            if (idx >= 0 && current.length === 1) {
+              current.splice(idx, 1);
+            } else {
+              selectedIds.value = [id];
+              refreshStats();
+              return;
+            }
+          }
+          selectedIds.value = current;
+          refreshStats();
+        }
+
+        function beginRename(t) {
+          editingId.value = t.id;
+          editingName.value = t.display_name;
+          nextTick(() => {
+            if (renameInput.value && renameInput.value.focus) {
+              renameInput.value.focus();
+              renameInput.value.select && renameInput.value.select();
+            }
+          });
+        }
+
+        async function commitRename() {
+          if (!editingId.value) return;
+          const id = editingId.value;
+          const name = editingName.value.trim();
+          editingId.value = null;
+          if (!name) return;
+          try {
+            const resp = await fetch(`${apiBase}/trajectories/rename`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, display_name: name }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+              console.error('Rename failed', data.error || resp.statusText);
+              return;
+            }
+            const item = data.item;
+            items.value = items.value.map((t) => (t.id === id ? item : t));
+            if (selectedIds.value.includes(id)) {
+              selectedIds.value = selectedIds.value
+                .filter((x) => x !== id)
+                .concat(item.id);
+              refreshStats();
+            }
+          } catch (e) {
+            console.error('Failed to rename trajectory', e);
+          }
+        }
+
+        function cancelRename() {
+          editingId.value = null;
+          editingName.value = '';
+        }
+
+        async function openHistory(t) {
+          historyVisible.value = true;
+          historyLoading.value = true;
+          historyError.value = '';
+          historySteps.value = [];
+          historyTitle.value = t.display_name || t.id;
+          try {
+            const resp = await fetch(
+              `${apiBase}/trajectories/${encodeURIComponent(t.id)}/short_history`
+            );
+            const data = await resp.json();
+            console.log('Short trajectory history response', data);
+            if (!resp.ok || !data.ok) {
+              historyError.value =
+                data && data.error
+                  ? data.error
+                  : `Failed to load history (HTTP ${resp.status})`;
+              return;
+            }
+            historySteps.value = Array.isArray(data.steps) ? data.steps : [];
+          } catch (e) {
+            console.error('Failed to load short trajectory history', e);
+            historyError.value = 'Failed to load short trajectory history from server.';
+          } finally {
+            historyLoading.value = false;
+          }
+        }
+
+        function closeHistory() {
+          historyVisible.value = false;
+        }
+
+        function parseObservationGrid(observation) {
+          const text = typeof observation === 'string' ? observation : '';
+          const lines = text.split('\n');
+          const mapRows = [];
+          for (const line of lines) {
+            if (!line.includes('|')) continue;
+            const mapPart = line.split('|')[1] || '';
+            const cells = mapPart.trim().split(/\s+/).filter(Boolean);
+            if (cells.length) mapRows.push(cells);
+          }
+          const cols = mapRows.length ? Math.max(...mapRows.map((r) => r.length)) : 0;
+          const tileStyle = {
+            '.': { text: 'G', bg: '#86efac', label: 'grass' },
+            'O': { text: 'S', bg: '#9ca3af', label: 'stone' },
+            'T': { text: 'T', bg: '#4ade80', label: 'tree' },
+            '~': { text: 'W', bg: '#38bdf8', label: 'water' },
+            '=': { text: 'R', bg: '#f59e0b', label: 'path' },
+            ':': { text: 'D', bg: '#fcd34d', label: 'sand' },
+            '#': { text: 'X', bg: '#334155', label: 'out_of_bounds' },
+            'P': { text: 'P', bg: '#f87171', label: 'player' },
+            'A': { text: 'A', bg: '#f87171', label: 'agent' },
+            'G': { text: 'G', bg: '#c084fc', label: 'goal' },
+            'S': { text: 'S', bg: '#22d3ee', label: 'start' },
+            'X': { text: 'X', bg: '#fb923c', label: 'path_mark' },
+            'AG': { text: 'AG', bg: '#f97316', label: 'agent_goal' },
+          };
+          const normalized = mapRows.map((row) =>
+            Array.from({ length: cols }, (_, i) => row[i] || '#')
+          );
+          const cells = normalized.flat().map((raw) => {
+            const style = tileStyle[raw] || { text: raw.slice(0, 2), bg: '#475569', label: raw };
+            return { ...style };
+          });
+          return { rows: normalized, cols, cells };
+        }
+
+        const currentPlayStep = computed(() => {
+          if (!playSteps.value.length) return {};
+          return playSteps.value[Math.max(0, Math.min(playStepIndex.value, playSteps.value.length - 1))] || {};
+        });
+
+        const playObservationTitle = computed(() =>
+          playWorldMode.value === 'exo-planet'
+            ? 'Observation (exo-planet tiles)'
+            : 'Observation (Craftax tiles)'
+        );
+
+        const currentPlayGrid = computed(() => parseObservationGrid(currentPlayStep.value.observation || ''));
+
+        const dialogComicRef = ref(null);
+
+        function scrollDialogToBottom() {
+          nextTick(() => {
+            const el = dialogComicRef.value;
+            if (el) el.scrollTop = el.scrollHeight;
+          });
+        }
+
+        function isSystemDialogTurn(turn) {
+          const q = String((turn && turn.question) || '').trim();
+          return q === 'System';
+        }
+
+        function dialogRoleLabel(role) {
+          return role === 'agent' ? 'Agent asks' : 'TalkingHeads answers';
+        }
+
+        function resolveOperatorAnswer(steps, askStepIdx, question) {
+          const direct = String((steps[askStepIdx] || {}).operator_answer || '').trim();
+          if (direct) return direct;
+          for (let i = askStepIdx; i < steps.length; i += 1) {
+            const turns = (Array.isArray(steps[i].dialog) ? steps[i].dialog : [])
+              .filter((turn) => !isSystemDialogTurn(turn));
+            for (const turn of turns) {
+              if (String(turn.question || '').trim() !== question) continue;
+              const answer = String(turn.answer || '').trim();
+              if (answer) return answer;
+            }
+          }
+          return '';
+        }
+
+        function buildRelevantDialogFromSteps(steps) {
+          const timeline = [];
+          if (!Array.isArray(steps)) return timeline;
+
+          steps.forEach((step, stepIdx) => {
+            const question = String(step.question || '').trim();
+            if (!question) return;
+
+            timeline.push({
+              id: `agent-q-${stepIdx}`,
+              role: 'agent',
+              kind: 'history',
+              text: question,
+              askStepIdx: stepIdx,
+              label: dialogRoleLabel('agent'),
+              timeLabel: '',
+            });
+
+            const answer = resolveOperatorAnswer(steps, stepIdx, question);
+            if (answer) {
+              timeline.push({
+                id: `operator-a-${stepIdx}`,
+                role: 'operator',
+                kind: 'answer',
+                text: answer,
+                askStepIdx: stepIdx,
+                label: dialogRoleLabel('operator'),
+                timeLabel: '',
+              });
+            }
+          });
+          return timeline;
+        }
+
+        const currentPlayDialogEntries = computed(() => {
+          const idx = playStepIndex.value;
+          const currentQuestion = String((currentPlayStep.value || {}).question || '').trim();
+          const entries = [];
+
+          for (const entry of playDialogTimeline.value) {
+            if (entry.askStepIdx > idx) continue;
+            if (
+              entry.role === 'operator' &&
+              entry.askStepIdx === idx &&
+              currentQuestion &&
+              !typingAgentQuestionDone.value
+            ) {
+              continue;
+            }
+            entries.push({ ...entry });
+          }
+
+          if (currentQuestion) {
+            for (let i = entries.length - 1; i >= 0; i -= 1) {
+              if (
+                entries[i].role === 'agent' &&
+                entries[i].askStepIdx === idx &&
+                entries[i].text === currentQuestion
+              ) {
+                entries[i] = { ...entries[i], kind: 'question' };
+                break;
+              }
+            }
+          }
+          return entries;
+        });
+
+        const lastOperatorEntryId = computed(() => {
+          const entries = currentPlayDialogEntries.value;
+          for (let i = entries.length - 1; i >= 0; i -= 1) {
+            if (entries[i].role === 'operator') return entries[i].id;
+          }
+          return '';
+        });
+
+        function clearPlayTimer() {
+          if (playTimer) {
+            clearInterval(playTimer);
+            playTimer = null;
+          }
+        }
+
+        function clearTypingTimer() {
+          if (typingTimer) {
+            clearInterval(typingTimer);
+            typingTimer = null;
+          }
+        }
+
+        function clearOperatorRevealTimer() {
+          if (operatorRevealTimer) {
+            clearTimeout(operatorRevealTimer);
+            operatorRevealTimer = null;
+          }
+        }
+
+        function clearOperatorReadTimer() {
+          if (operatorReadTimer) {
+            clearTimeout(operatorReadTimer);
+            operatorReadTimer = null;
+          }
+        }
+
+        function ensurePlayTimer() {
+          clearPlayTimer();
+          if (!playRunning.value || !playSteps.value.length) return;
+          const scheduleNext = () => {
+            if (!playRunning.value || !playSteps.value.length) return;
+            if (playStepIndex.value >= playSteps.value.length - 1) {
+              playRunning.value = false;
+              clearPlayTimer();
+              return;
+            }
+            const delayMs = getCurrentStepDisplayMs();
+            playTimer = setTimeout(() => {
+              if (!playRunning.value) return;
+              if (playStepIndex.value >= playSteps.value.length - 1) {
+                playRunning.value = false;
+                clearPlayTimer();
+                return;
+              }
+              playStepIndex.value += 1;
+              scheduleNext();
+            }, delayMs);
+          };
+          scheduleNext();
+        }
+
+        function getCurrentStepDisplayMs() {
+          const minMs = Math.max(100, Number(playSpeedSec.value || 0.5) * 1000);
+          const s = currentPlayStep.value || {};
+          const questionText = String(s.question || '');
+          const answerText = String(s.operator_answer || '').trim();
+          if (!questionText && !answerText) return minMs;
+          const wordsPerMinute = 180;
+          const questionWords = questionText.trim() ? questionText.trim().split(/\s+/).length : 0;
+          const answerWords = answerText.trim() ? answerText.trim().split(/\s+/).length : 0;
+          const questionTypingMs = Math.max(
+            0,
+            questionWords ? Math.round((questionWords / (wordsPerMinute / 60)) * 1000) : 0
+          );
+          const operatorDelayMs = 1000;
+          const answerReadMsRaw = answerWords
+            ? Math.max(800, Math.round((answerWords / (wordsPerMinute / 60)) * 1000))
+            : 0;
+          const answerReadMs = Math.min(answerReadMsRaw, 2000);
+          return Math.max(minMs, questionTypingMs + operatorDelayMs + answerReadMs);
+        }
+
+        function startAgentTypingEffect(fullQuestion) {
+          clearTypingTimer();
+          clearOperatorRevealTimer();
+          clearOperatorReadTimer();
+          operatorReadAcknowledged.value = false;
+          typedAgentQuestion.value = '';
+          typingAgentQuestionDone.value = false;
+          operatorBubbleVisible.value = true;
+          const full = String(fullQuestion || '');
+          if (!full) {
+            typingAgentQuestionDone.value = true;
+            operatorBubbleVisible.value = true;
+            return;
+          }
+          const wordsPerMinute = 180;
+          const wordCount = full.trim() ? full.trim().split(/\s+/).length : 0;
+          const typingDurationMs = Math.max(1000, (wordCount / (wordsPerMinute / 60)) * 1000);
+          const charIntervalMs = Math.max(12, Math.floor(typingDurationMs / Math.max(1, full.length)));
+          let idx = 0;
+          typingTimer = setInterval(() => {
+            idx += 1;
+            typedAgentQuestion.value = full.slice(0, idx);
+            scrollDialogToBottom();
+            if (idx >= full.length) {
+              typingAgentQuestionDone.value = true;
+              clearTypingTimer();
+              scrollDialogToBottom();
+              operatorRevealTimer = setTimeout(() => {
+                operatorBubbleVisible.value = true;
+                scrollDialogToBottom();
+                if (currentPlayDialogEntries.value.some((x) => x.role === 'operator')) {
+                  clearOperatorReadTimer();
+                  operatorReadTimer = setTimeout(() => {
+                    operatorReadAcknowledged.value = true;
+                  }, 2000);
+                }
+              }, 1000);
+            }
+          }, charIntervalMs);
+        }
+
+        function renderedDialogText(entry) {
+          if (entry.role === 'agent' && entry.kind === 'question') {
+            return typedAgentQuestion.value || '';
+          }
+          return entry.text || '';
+        }
+
+        function showTypingCaret(entry) {
+          return (
+            entry.role === 'agent' &&
+            entry.kind === 'question' &&
+            !typingAgentQuestionDone.value
+          );
+        }
+
+        async function openPlayMode() {
+          if (selectedIds.value.length !== 1) return;
+          const selected = items.value.find((x) => x.id === selectedIds.value[0]);
+          if (!selected) return;
+          playVisible.value = true;
+          playLoading.value = true;
+          playError.value = '';
+          playTitle.value = selected.display_name || selected.id;
+          playWorldMode.value = 'craftax';
+          playSteps.value = [];
+          playDialogTimeline.value = [];
+          playStepIndex.value = 0;
+          playRunning.value = false;
+          lastAgentQuestionText.value = '';
+          operatorReadAcknowledged.value = false;
+          clearPlayTimer();
+          try {
+            const resp = await fetch(
+              `${apiBase}/trajectories/${encodeURIComponent(selected.id)}/play_history`
+            );
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+              playError.value =
+                data && data.error
+                  ? data.error
+                  : `Failed to load play history (HTTP ${resp.status})`;
+              return;
+            }
+            playSteps.value = Array.isArray(data.steps) ? data.steps : [];
+            playWorldMode.value = data.world_mode === 'exo-planet' ? 'exo-planet' : 'craftax';
+            playDialogTimeline.value = buildRelevantDialogFromSteps(playSteps.value);
+            lastAgentQuestionText.value = getLatestQuestionAtIndex(0);
+            if (lastAgentQuestionText.value) {
+              startAgentTypingEffect(lastAgentQuestionText.value);
+            } else {
+              typedAgentQuestion.value = '';
+              typingAgentQuestionDone.value = true;
+              operatorBubbleVisible.value = true;
+            }
+            scrollDialogToBottom();
+          } catch (e) {
+            console.error('Failed to load trajectory play history', e);
+            playError.value = 'Failed to load trajectory play history from server.';
+          } finally {
+            playLoading.value = false;
+          }
+        }
+
+        function closePlayMode() {
+          playVisible.value = false;
+          playRunning.value = false;
+          playDialogTimeline.value = [];
+          clearPlayTimer();
+          clearTypingTimer();
+          clearOperatorRevealTimer();
+          clearOperatorReadTimer();
+          operatorReadAcknowledged.value = false;
+        }
+
+        function nextPlayStep() {
+          if (!playSteps.value.length) return;
+          playStepIndex.value = Math.min(playStepIndex.value + 1, playSteps.value.length - 1);
+        }
+
+        function prevPlayStep() {
+          if (!playSteps.value.length) return;
+          playStepIndex.value = Math.max(playStepIndex.value - 1, 0);
+        }
+
+        function togglePlay() {
+          if (!playSteps.value.length) return;
+          if (playStepIndex.value >= playSteps.value.length - 1) {
+            playStepIndex.value = 0;
+          }
+          playRunning.value = !playRunning.value;
+        }
+
+        function getLatestQuestionAtIndex(stepIdx) {
+          const idx = Math.max(0, Math.min(stepIdx, playSteps.value.length - 1));
+          for (let i = idx; i >= 0; i -= 1) {
+            const q = String((playSteps.value[i] || {}).question || '').trim();
+            if (q) return q;
+          }
+          return '';
+        }
+
+        async function refreshStats() {
+          statsError.value = '';
+          stats.value = null;
+          const ids = selectedIds.value;
+          if (!ids.length) return;
+          try {
+            const resp = await fetch(`${apiBase}/trajectories/stats`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids }),
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            stats.value = data;
+          } catch (e) {
+            console.error('Failed to load trajectory stats', e);
+            statsError.value = 'Failed to compute trajectory statistics.';
+          }
+        }
+
+        async function deleteTrajectory(t) {
+          if (!t || !t.id) return;
+          const confirmed = window.confirm(
+            `Delete trajectory "${t.display_name || t.id}" from this device? This cannot be undone.`
+          );
+          if (!confirmed) return;
+          try {
+            const resp = await fetch(`${apiBase}/trajectories/delete`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: [t.id] }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+              console.error('Delete failed', data.error || resp.statusText);
+              alert(data.error || 'Failed to delete trajectory.');
+              return;
+            }
+            const deletedIds = Array.isArray(data.deleted) ? data.deleted : [];
+            if (!deletedIds.includes(t.id)) {
+              // Nothing actually removed.
+              return;
+            }
+            items.value = items.value.filter((x) => x.id !== t.id);
+            selectedIds.value = selectedIds.value.filter((id) => id !== t.id);
+            // If stats were based on this trajectory, refresh them.
+            if (selectedIds.value.length) {
+              refreshStats();
+            } else {
+              stats.value = null;
+            }
+          } catch (e) {
+            console.error('Failed to delete trajectory', e);
+            alert('Failed to delete trajectory from server.');
+          }
+        }
+
+        function updateCharts() {
+          if (!stats.value) {
+            if (qaChartInstance) {
+              qaChartInstance.destroy();
+              qaChartInstance = null;
+            }
+            if (actionsChartInstance) {
+              actionsChartInstance.destroy();
+              actionsChartInstance = null;
+            }
+            if (lengthChartInstance) {
+              lengthChartInstance.destroy();
+              lengthChartInstance = null;
+            }
+            if (actionDistChartInstance) {
+              actionDistChartInstance.destroy();
+              actionDistChartInstance = null;
+            }
+            if (questionsByGoalChartInstance) {
+              questionsByGoalChartInstance.destroy();
+              questionsByGoalChartInstance = null;
+            }
+            if (databaseByGoalChartInstance) {
+              databaseByGoalChartInstance.destroy();
+              databaseByGoalChartInstance = null;
+            }
+            return;
+          }
+          const s = stats.value;
+          // QA chart
+          if (qaChart.value) {
+            const questions = s.total_questions || 0;
+            const actions = s.total_actions || 0;
+            const denom = questions + actions || 1;
+            const qPct = (questions / denom) * 100;
+            const aPct = (actions / denom) * 100;
+            const ctx = qaChart.value.getContext('2d');
+            const data = {
+              labels: ['Questions', 'Actions'],
+              datasets: [
+                {
+                  label: 'Share of steps (%)',
+                  data: [qPct, aPct],
+                  backgroundColor: [
+                    'rgba(56, 189, 248, 0.75)',
+                    'rgba(110, 231, 183, 0.75)',
+                  ],
+                  borderColor: [
+                    'rgba(56, 189, 248, 1)',
+                    'rgba(110, 231, 183, 1)',
+                  ],
+                  borderWidth: 1,
+                },
+              ],
+            };
+            const qaLegend = chartLegend(true, chartFontSizes.value.qa.legend);
+            qaLegend.labels.padding = 8;
+            qaLegend.labels.boxWidth = 10;
+            const options = {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: qaLegend,
+                tooltip: {
+                  callbacks: {
+                    label(context) {
+                      const value = context.parsed;
+                      return `${context.label}: ${value.toFixed(1)}%`;
+                    },
+                  },
+                },
+              },
+            };
+            if (qaChartInstance) {
+              qaChartInstance.data = data;
+              qaChartInstance.options = options;
+              qaChartInstance.update();
+            } else {
+              qaChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data,
+                options,
+              });
+            }
+          }
+          // Actions per episode chart (vertical bars)
+          if (actionsChart.value) {
+            const episodes = Array.isArray(s.episodes) ? s.episodes : [];
+            const labels = episodes.map((e) => e.display_name || e.id);
+            const actionsData = episodes.map((e) => e.actions || 0);
+            const dataA = {
+              labels,
+              datasets: [
+                {
+                  label: 'Actions / episode',
+                  data: actionsData,
+                  backgroundColor: 'rgba(234, 179, 8, 0.75)',
+                  borderColor: 'rgba(234, 179, 8, 1)',
+                  borderWidth: 1,
+                },
+              ],
+            };
+            const optionsA = verticalBarOptions({
+              axisFontSize: chartFontSizes.value.actions.axis,
+              tooltipLabel: (_ctx, value) => `Actions: ${Number(value).toFixed(0)}`,
+            });
+            setBarChartWrapHeight(actionsChartWrap.value);
+            actionsChartInstance = renderBarChart(
+              actionsChart.value,
+              actionsChartInstance,
+              dataA,
+              optionsA
+            );
+          }
+          // Answer length per episode chart (vertical bars)
+          if (lengthChart.value) {
+            const episodes = Array.isArray(s.episodes) ? s.episodes : [];
+            const labels = episodes.map((e) => e.display_name || e.id);
+            const answerLenData = episodes.map(
+              (e) => e.mean_answer_len_chars || 0
+            );
+            const dataL = {
+              labels,
+              datasets: [
+                {
+                  label: 'Answer length (chars)',
+                  data: answerLenData,
+                  backgroundColor: 'rgba(244, 114, 182, 0.75)',
+                  borderColor: 'rgba(244, 114, 182, 1)',
+                  borderWidth: 1,
+                },
+              ],
+            };
+            const optionsL = verticalBarOptions({
+              axisFontSize: chartFontSizes.value.length.axis,
+              tooltipLabel: (_ctx, value) =>
+                `Answer length: ${Number(value).toFixed(1)} chars`,
+            });
+            setBarChartWrapHeight(lengthChartWrap.value);
+            lengthChartInstance = renderBarChart(
+              lengthChart.value,
+              lengthChartInstance,
+              dataL,
+              optionsL
+            );
+          }
+          // Action token distribution (vertical columns, category labels on X)
+          if (actionDistChart.value) {
+            const counts = s.action_counts || {};
+            const entries = Object.entries(counts)
+              .filter(([_, v]) => typeof v === 'number' && v > 0)
+              .sort((a, b) => b[1] - a[1]);
+            const labels = entries.map(([k]) => k);
+            const values = entries.map(([_, v]) => v);
+            setBarChartWrapHeight(actionDistWrap.value, {
+              height: labels.length > 12 ? 300 : 260,
+              minWidth: Math.max(360, labels.length * 52),
+            });
+            const backgroundColors = labels.map((label) =>
+              label === 'WRONG'
+                ? 'rgba(248, 113, 113, 0.85)' // red for wrong actions
+                : 'rgba(59, 130, 246, 0.75)'
+            );
+            const borderColors = labels.map((label) =>
+              label === 'WRONG'
+                ? 'rgba(248, 113, 113, 1)'
+                : 'rgba(59, 130, 246, 1)'
+            );
+            const dataD = {
+              labels,
+              datasets: [
+                {
+                  label: 'Action count',
+                  data: values,
+                  backgroundColor: backgroundColors,
+                  borderColor: borderColors,
+                  borderWidth: 1,
+                },
+              ],
+            };
+            const optionsD = verticalBarOptions({
+              axisFontSize: chartFontSizes.value.actionDist.axis,
+              tooltipLabel: (context, value) =>
+                `${context.label}: ${Number(value).toFixed(0)}`,
+            });
+            actionDistChartInstance = renderBarChart(
+              actionDistChart.value,
+              actionDistChartInstance,
+              dataD,
+              optionsD
+            );
+          }
+          const runs = Array.isArray(s.runs) ? s.runs : [];
+          const campaignGoals = Array.isArray(s.campaign_goals) ? s.campaign_goals : [];
+          const chartRuns = prepareRunsForComparisonChart(runs, campaignGoals);
+          const comparisonDecimals = averageRunsByDisplayName.value ? 2 : 0;
+          if (questionsByGoalChart.value && chartRuns.length && campaignGoals.length) {
+            questionsByGoalChartInstance = buildRunGoalComparisonChart({
+              canvasEl: questionsByGoalChart.value,
+              wrapEl: questionsByGoalWrap.value,
+              instance: questionsByGoalChartInstance,
+              runs: chartRuns,
+              campaignGoals,
+              metric: 'questions',
+              chartKey: 'questionsByGoal',
+              valueDecimals: comparisonDecimals,
+            });
+          }
+          if (databaseByGoalChart.value && chartRuns.length && campaignGoals.length) {
+            databaseByGoalChartInstance = buildRunGoalComparisonChart({
+              canvasEl: databaseByGoalChart.value,
+              wrapEl: databaseByGoalWrap.value,
+              instance: databaseByGoalChartInstance,
+              runs: chartRuns,
+              campaignGoals,
+              metric: 'database_records',
+              chartKey: 'databaseByGoal',
+              valueDecimals: comparisonDecimals,
+            });
+          }
+        }
+
+        onMounted(() => {
+          loadTrajectories();
+          loadCampaignBenchmark();
+          themeMediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+          const onSystemThemeChange = () => {
+            if (themePref.value !== 'system') return;
+            window.PlayWebTheme?.applyTheme?.('system');
+            applyChartDefaults();
+            destroyChartInstances();
+            nextTick(updateCharts);
+          };
+          if (themeMediaQuery.addEventListener) {
+            themeMediaQuery.addEventListener('change', onSystemThemeChange);
+          } else if (themeMediaQuery.addListener) {
+            themeMediaQuery.addListener(onSystemThemeChange);
+          }
+        });
+
+        watch(stats, () => {
+          nextTick(updateCharts);
+        }, { deep: true });
+
+        watch(averageRunsByDisplayName, () => {
+          nextTick(updateCharts);
+        });
+
+        watch(playRunning, () => {
+          ensurePlayTimer();
+        });
+
+        watch(playSpeedSec, () => {
+          if (playRunning.value) ensurePlayTimer();
+        });
+
+        watch(playSteps, () => {
+          if (playRunning.value) ensurePlayTimer();
+        }, { deep: true });
+
+        watch(playStepIndex, () => {
+          const currentQuestion = String((currentPlayStep.value || {}).question || '').trim();
+          if (currentQuestion) {
+            lastAgentQuestionText.value = currentQuestion;
+            if (playVisible.value) startAgentTypingEffect(currentQuestion);
+          } else {
+            clearTypingTimer();
+            clearOperatorRevealTimer();
+            clearOperatorReadTimer();
+            typedAgentQuestion.value = lastAgentQuestionText.value || '';
+            typingAgentQuestionDone.value = true;
+            operatorBubbleVisible.value = true;
+            if (currentPlayDialogEntries.value.some((x) => x.role === 'operator')) {
+              operatorReadTimer = setTimeout(() => {
+                operatorReadAcknowledged.value = true;
+              }, 2000);
+            } else {
+              operatorReadAcknowledged.value = false;
+            }
+          }
+          scrollDialogToBottom();
+          if (playRunning.value) ensurePlayTimer();
+        });
+
+        watch(currentPlayDialogEntries, () => {
+          scrollDialogToBottom();
+        }, { deep: true });
+
+        onBeforeUnmount(() => {
+          clearPlayTimer();
+          clearTypingTimer();
+          clearOperatorRevealTimer();
+          clearOperatorReadTimer();
+        });
+
+        return {
+          items,
+          loading,
+          error,
+          selectedIds,
+          editingId,
+          editingName,
+          renameInput,
+          stats,
+          statsError,
+          campaignBenchmark,
+          campaignBenchmarkError,
+          benchmarkSince,
+          benchmarkSinceApplied,
+          benchmarkWorldMode,
+          benchmarkPanelCollapsed,
+          toggleBenchmarkPanel,
+          setBenchmarkWorldMode,
+          onBenchmarkSinceChange,
+          clearBenchmarkSince,
+          benchmarkModeBlocks,
+          loadCampaignBenchmark,
+          benchmarkWorldModeLabel,
+          benchmarkHumanRows,
+          benchmarkHumanError,
+          benchmarkHumanAvatarSrc,
+          benchmarkHumanLevelsLabel,
+          benchmarkHumanStepsLabel,
+          benchmarkHumanQuestionsLabel,
+          benchmarkHumanPerLevelCell,
+          mergeBenchmarkRows,
+          benchmarkTaskShortTitle,
+          deploymentTaskIcon,
+          onDeploymentTaskIconError,
+          formatExplorationSolvedInline,
+          formatDeploymentSr,
+          formatDeploymentMeanQ,
+          averageRunsByDisplayName,
+          duplicateRunNameCount,
+          qaChart,
+          actionsChart,
+          actionsChartWrap,
+          lengthChart,
+          lengthChartWrap,
+          historyVisible,
+          historyLoading,
+          historyError,
+          historyTitle,
+          historySteps,
+          loadTrajectories,
+          toggleSelect,
+          beginRename,
+          commitRename,
+          cancelRename,
+          refreshStats,
+          openHistory,
+          closeHistory,
+          deleteTrajectory,
+          actionDistChart,
+          actionDistWrap,
+          questionsByGoalChart,
+          questionsByGoalWrap,
+          databaseByGoalChart,
+          databaseByGoalWrap,
+          playVisible,
+          playLoading,
+          playTitle,
+          playWorldMode,
+          playObservationTitle,
+          playSteps,
+          playStepIndex,
+          playRunning,
+          playSpeedSec,
+          operatorBubbleVisible,
+          operatorReadAcknowledged,
+          currentPlayStep,
+          currentPlayGrid,
+          dialogComicRef,
+          currentPlayDialogEntries,
+          lastOperatorEntryId,
+          renderedDialogText,
+          showTypingCaret,
+          openPlayMode,
+          closePlayMode,
+          nextPlayStep,
+          prevPlayStep,
+          togglePlay,
+          CHART_FONT_MIN,
+          CHART_FONT_MAX,
+          chartFontSizes,
+          onChartFontChange,
+          themePref,
+          setThemePref,
+        };
+      },
+    }).mount('#app');
+  </script>
+</body>
+</html>
+

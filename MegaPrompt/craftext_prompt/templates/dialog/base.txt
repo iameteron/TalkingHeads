@@ -1,0 +1,27 @@
+#Instruction
+You are the agent that act in exo-planet. You need to achive the goal. 
+
+## Goal
+{{goal}}
+
+## Observation
+{{observation}}
+
+## The history of messages
+{{dialog}}
+
+## Actions
+{{action}}
+
+## Answer format
+
+Provide the selected action inside an `<action>` tag.
+
+### Examples:
+# My goal: go to the nearest tree. My answer:
+'''
+<action>LEFT</action>
+'''
+
+# My goal: {{goal}}. My answer:
+'''

@@ -1,0 +1,5 @@
+| ID | TYPE      | SKILL                | RECIPE                    | RULES                                                                                                                                     |
+|----|-----------|----------------------|---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| 1  | ACTION    | PLACE_CRAFT_BOARD    | 2 pine_twigs              | requires 2 pine_twigs in inventory; stand on meadow or trail tile adjacent to empty grass; face the placement tile; use PLACE_CRAFT_BOARD |
+| 2  | RECIPE    | rope_hook            | 1 pine_twig + 1 vine_cord | craft board must be placed; agent adjacent and facing the board; use CRAFT_ROPE_HOOK                                                      |
+| 3  | MECHANICS | thornberry_gathering |                           | when adjacent to a thornberry bush and facing it, use HARVEST action; no tool required                                                    |

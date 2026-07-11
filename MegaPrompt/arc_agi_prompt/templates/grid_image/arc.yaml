@@ -1,0 +1,28 @@
+protocol:
+  - name: arc_agi_grid_image
+    template: reasoning.txt
+    renders:
+      act:
+        placeholder: "{{action}}"
+        renderer: bullet_list
+      obs:
+        placeholder: "{{observation}}"
+        renderer: arc_grid_image
+      dialog:
+        placeholder: "{{dialog}}"
+        renderer: full
+      action_history:
+        placeholder: "{{action_history}}"
+        renderer: last_thirty
+      previous_reasoning:
+        placeholder: "{{previous_reasoning}}"
+        renderer: as_is
+      repeat_action_tip:
+        placeholder: "{{repeat_action_tip}}"
+        renderer: as_is
+      current_step:
+        placeholder: "{{current_step}}"
+        renderer: index
+      goal:
+        placeholder: "{{goal}}"
+        renderer: just_a_goal

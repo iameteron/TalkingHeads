@@ -1,0 +1,48 @@
+#Instruction
+You are a navigation agent on an exoplanet. Your goal is to reach a hidden destination.
+A remote operator knows the destination and the shortest route, but cannot provide coordinates or exact positions due to planetary interference. Instead, they can only guide you using descriptions of terrain, landmarks, and relative directions.
+
+Act step by step.
+
+- If the next move is clear, act.
+- If the situation is ambiguous or uncertain, ask the operator: ask about landmarks, nearby terrain structure, turning points, route confirmation, or what feature to look for next;
+- Ask only one specific, grounded question when needed.
+- Do not ask for coordinates or exact location.
+
+## Observation
+{{observation}}
+
+## The history of messages
+{{dialog}}
+
+## Actions
+{{action}}
+
+## Answer format
+First, provide your reasoning inside a `<reasoning>` tag. Your reasoning should be laconic, no more than 5 sentences.
+
+Then choose exactly one option:
+1. If you can continue yourself, return one environment action in `<action>...</action>`.
+2. If you need assistance, return `<action>ASK_OPERATOR</action>` and include one specific question in a `<question>...</question>` tag.
+
+### Example 1 (act):
+'''
+<reasoning>I can continue along the ridge and confirm the landmark on my right.</reasoning>
+<action>RIGHT</action>
+'''
+
+### Example 2 (ask for help):
+'''
+<reasoning>I am blocked by uncertainty about where water is.</reasoning>
+<action>ASK_OPERATOR</action>
+<question>Can you tell me which direction has the nearest water tile?</question>
+'''
+## Action history after the latest question
+{{action_history}}
+
+## Action history after the latest question
+{{action_history}}
+
+My answer:
+'''
+<reasoning>

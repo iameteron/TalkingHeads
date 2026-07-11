@@ -1,0 +1,55 @@
+# Oracle, Intent, and Experts configuration
+# Override via environment or pass path to load_config()
+
+oracle:
+  # This deployment is locked to OpenRouter. Use only model ids available on
+  # OpenRouter (the web UI also forces all experts onto the active agent model).
+  map_expert:
+    mode: "openrouter"  # "local" | "hub" | "openrouter"
+    model_path: "qwen/qwen3-next-80b-a3b-instruct"
+
+  mechanics_expert:
+    mode: "openrouter"
+    model_path: "qwen/qwen3-next-80b-a3b-instruct"
+
+  action_expert:
+    mode: "openrouter"
+    model_path: "qwen/qwen3-next-80b-a3b-instruct"
+
+  question_expert:
+    mode: "openrouter"
+    model_path: "qwen/qwen3-next-80b-a3b-instruct"
+
+  goal_expert:
+    mode: "openrouter"
+    model_path: "qwen/qwen3-next-80b-a3b-instruct"
+
+  path_expert:
+    mode: "openrouter"
+    model_path: "qwen/qwen3-next-80b-a3b-instruct"
+
+  path_expert_helper:
+    mode: "openrouter"
+    model_path: "qwen/qwen3-next-80b-a3b-instruct"
+
+
+  # Optional: HuggingFace Hub inference (for mode: hub)
+  hub:
+    api_key: null   # null = use HF_TOKEN env
+    base_url: null
+    provider: null  # optional default provider; or append :provider to model_path (e.g. :nscale)
+    default_system_message: "You are a helpful assistant."
+
+  # Optional: generation defaults for experts
+  gen:
+    max_new_tokens: 1024
+    do_sample: true
+    temperature: 0.7
+    top_p: 0.9
+    use_cache: true
+
+  # Optional: path pipeline limits (Craftext / agent rollouts with bounded observation window)
+  path_pipeline:
+    # Max characters for one operator reply. If exceeded, TalkingHeads retries with a "shorter"
+    # instruction (same idea as the arrow policy); null disables.
+    operator_max_answer_chars: null

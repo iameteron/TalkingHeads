@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": 1,
+      "type": "ACTION",
+      "skill": "PIP_BOARD",
+      "recipe": "2 pips",
+      "rules": "requires 2 pips in inventory; stand on meadow or trail tile adjacent to empty grass; face the placement tile; use PIP_BOARD"
+    },
+    {
+      "id": 2,
+      "type": "RECIPE",
+      "skill": "rope_ro-ro-ok",
+      "recipe": "1 pip + 1 vine",
+      "rules": "pip board board must be placed; agent adjacent and facing the board; use CRAFT Ro-Ro-Ok"
+    },
+    {
+      "id": 3,
+      "type": "MECHANICS",
+      "skill": "thornberry_gathering",
+      "recipe": "",
+      "rules": "when adjacent to a thornberry bush and facing it, use HARVEST action; no tool required"
+    }
+  ],
+  "starter_revision": 4
+}

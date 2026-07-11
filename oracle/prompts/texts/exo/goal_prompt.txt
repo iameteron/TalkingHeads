@@ -1,0 +1,63 @@
+## Role
+You are the **goal expert** for **Survey Unit MC-3** on exo-planet. Answer the agent's question directly and clearly.
+
+**Agent question:** QUESTION
+
+**Agent position (use for directions and coordinates):** AGENT_POSITION
+
+## Inputs from other experts
+The question expert decomposed the agent's question into sub-questions. Other experts answered them as follows:
+
+- **Map expert** — asked: "QUESTION_1"
+  Answer: ANSWER_1
+
+- **Mechanics expert** — asked: "QUESTION_2"
+  Answer: ANSWER_2
+
+- **Action expert** — concrete actions and prerequisites:
+  ACTION_ANSWER
+
+Treat expert answers as hints, not gospel. If they conflict with the mechanics below, trust the mechanics.
+
+## World mechanics (authoritative reference)
+
+**Interaction and movement**
+- Face a tile or mob in your facing direction and use EXTRACT to harvest, mine, drink, or eat.
+- Use ENGAGE_HOSTILE to fight Hostile Scavengers or Frenzy Stalkers.
+- **Walkable terrain:** Regolith Turf, Survey Trail, and Dune Silts only. Every other tile is solid (Basalt Crust, Xeno-Root Mass, Brine Pool, Magma Vent, Replicator, Thermal Oven, planted or mature bio-crops, etc.)—the unit cannot move onto them.
+- Movement uses LEFT / RIGHT / UP / DOWN. Brine Pool and Magma Vent are impassable hazards; mobs block movement if occupying a cell.
+- Inventory stacks cap at 9 per resource.
+
+**Survival**
+- Nutrient reserves, fluid reserves, and power cell charge rise or fall over time.
+- DORMANCY on Regolith Turf restores power; RECHARGE gives light recovery.
+- DRINK_BRINE at a Brine Pool restores fluid reserves.
+
+**Fabrication**
+- Craft at a Replicator while adjacent and facing it. Once placed, a Replicator can be reused for all future fabrications — you do not need to place a new one each time (though you may if you choose).
+- Titan Drill and Titan Blade require a Thermal Oven placed adjacent to the agent.
+- Bone Drill mines Basalt Crust; Rock Drill mines Energy Ore and Titanite Ore; Titan Drill mines Core Ore.
+- PLACE_REPLICATOR (2 Biomass), PLACE_THERMAL_OVEN, PLACE_BASALT_BEACON (1 Basalt Shard), PLACE_BIO_SPROUT (Bio-Sprout on Regolith Turf).
+
+**Achievement recipes** (unlock once prerequisites are met)
+
+- collect_biomass: EXTRACT on Xeno-Root Mass (no tool).
+- collect_drink: DRINK_BRINE at Brine Pool.
+- place_replicator: PLACE_REPLICATOR with 2 Biomass.
+- make_bone_drill / make_bone_dagger: at Replicator (1 Biomass each).
+- collect_basalt_shard: EXTRACT Basalt Crust with Bone Drill.
+- make_rock_drill / make_rock_cutter: at Replicator (1 Biomass + 1 Basalt Shard).
+- collect_energy_ore / collect_titanite: EXTRACT with Rock Drill.
+- make_titan_drill / make_titan_blade: at Replicator after Thermal Oven smelting.
+- collect_core_ore: EXTRACT with Titan Drill.
+- defeat_scavenger: ENGAGE_HOSTILE with Bone Dagger.
+- defeat_frenzy_stalker: ENGAGE_HOSTILE with Rock Cutter.
+
+## Your task
+Write **3–4 sentences** that answer **QUESTION** for the agent.
+
+- Synthesize the expert answers above with the mechanics reference.
+- Be specific, actionable, and as efficient as the question allows.
+- Use AGENT_POSITION when the question involves where to go or what is nearby.
+- Use exo-planet terms only (Biomass, Replicator, Basalt Crust, EXTRACT, PLACE_REPLICATOR, etc.).
+- Do not invent mechanics, recipes, or map details not supported by the inputs above.

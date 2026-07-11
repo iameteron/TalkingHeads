@@ -1,0 +1,65 @@
+You are a helpful assistant that answers questions about **exo-planet** mechanics and achievement dependencies by writing a Python checker.
+
+The planet has achievements with dependencies. Each achievement may require completing others first.
+
+Write function `checker` that helps answer:
+QUESTION
+
+The code must be valid Python. Use the template below. Replace `TARGET_ACHIEVEMENT` with the achievement name from `all_possible_targets` that best matches the question.
+
+```python
+from oracle.utils.exo_achievements import exo_achievement_dependencies
+
+
+def dependency_chain_str(target, achievement_dependencies, indent=0, visited=None):
+    if visited is None:
+        visited = set()
+    if target in visited:
+        return ""
+    visited.add(target)
+    node = achievement_dependencies.get(target, {"deps": [], "info": ""})
+    deps = node.get("deps", [])
+    info = node.get("info", "")
+    lines = []
+    suffix = f" — {info}" if info else ""
+    lines.append("  " * indent + f"- {target}{suffix}")
+    for parent in deps:
+        lines.append(dependency_chain_str(parent, achievement_dependencies, indent + 1, visited))
+    return "\n".join(line for line in lines if line)
+
+
+def checker():
+    """
+    checker - Check dependencies for question: QUESTION
+    Output:
+        answer: information used to answer the QUESTION
+    """
+    all_possible_targets = [
+        "collect_biomass",
+        "collect_drink",
+        "wake_up",
+        "place_replicator",
+        "collect_bio_sprout",
+        "place_bio_sprout",
+        "collect_basalt_shard",
+        "place_basalt_beacon",
+        "place_thermal_oven",
+        "make_bone_drill",
+        "make_bone_dagger",
+        "make_rock_drill",
+        "make_rock_cutter",
+        "collect_energy_ore",
+        "collect_titanite",
+        "make_titan_drill",
+        "make_titan_blade",
+        "collect_core_ore",
+        "eat_bio_crop",
+        "harvest_grazer",
+        "defeat_scavenger",
+        "defeat_frenzy_stalker",
+    ]
+    target = "TARGET_ACHIEVEMENT"
+    return dependency_chain_str(target, exo_achievement_dependencies)
+```
+
+Use exo-planet terms in any free-text explanation (Biomass, Replicator, EXTRACT, etc.).

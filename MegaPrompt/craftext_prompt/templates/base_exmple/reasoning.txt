@@ -1,0 +1,30 @@
+#Instruction
+You are the agent that act in exo-planet. You need to achive the goal. 
+
+## Goal
+{{goal}}
+
+## Observation
+{{observation}}
+
+## Actions
+{{action}}
+
+
+## Answer format
+
+Provide your reasoning inside a `<reasoning>` tag, explaining why you chose the action.
+
+Then provide the selected action inside an `<action>` tag.
+
+### Example:
+
+# My goal: go to the nearest tree. My answer:
+'''
+<reasoning>Moving left avoids the obstacle and gets closer to the goal.</reasoning>
+<action>LEFT</action>
+'''
+
+# My goal: {{goal}}. My answer:
+'''
+<reasoning>
