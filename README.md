@@ -22,7 +22,7 @@ Exo-Planet transfer setting, and ARC-AGI-3 human-helper workflows.
 - Project page: `https://iameteron.github.io/TalkingHeads/` after GitHub Pages
   is enabled.
 - Code: this repository.
-- Live demo: `http://158.160.235.200/play/index.html`
+- Live demo: `http://158.160.220.30/play/`
 - Demo video: `https://drive.google.com/drive/folders/1VxMYtPXQKqoAb97vEC6mSYDqJB_hxNaS?usp=sharing`
 - Prompts: see `MegaPrompt/` and `oracle/prompts/texts/`.
 - License: MIT for TalkingHeads source code; third-party components retain
