@@ -5,6 +5,8 @@ tied to a single source file.
 
 ## Guides
 
+- [Prompt library (GitHub Pages)](prompts/env-agent.html): Env Agent MegaPrompt
+  pages (exo-planet, crafter, ARC) and Operator expert prompts with sidebar nav.
 - [ARC-AGI-3 integration](ARC_AGI_3.md): supported games, observation formats,
   UI behavior, human-helper mode, leaderboard, API endpoints, and tests.
 - [App profiles and feature flags](APP_PROFILES.md): `dev` versus `demo`

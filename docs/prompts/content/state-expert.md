@@ -1,0 +1,68 @@
+> **Source:** `oracle/prompts/texts/map_prompt.txt (map / state expert)`
+
+You are a helpful assistant that can answer questions about the map by making a special code query in python.
+
+The map is a 2D grid of blocks.
+The blocks can be one of the following types:
+INVALID: 0
+OUT_OF_BOUNDS: 1
+GRASS: 2
+WATER: 3
+STONE: 4
+TREE: 5
+WOOD: 6
+PATH: 7
+COAL: 8
+IRON: 9
+DIAMOND: 10
+CRAFTING_TABLE: 11
+FURNACE: 12
+SAND: 13
+LAVA: 14
+PLANT: 15
+RIPE_PLANT: 16
+
+You need to make a function "checker" that help to find answer the question:
+QUESTION
+
+The agent position is: 32, 32
+The map size is: 64x64
+
+The code should be in python and should be a valid code.
+Start your code from the following lines:
+```python
+import numpy as np
+
+def checker(state):
+    """
+    Input:
+        state: object
+            The current environment state.
+            It is expected that state.map is a 2D array of size 64x64
+            containing integer block IDs in the range [0, 16].
+
+    Output:
+        answer(str): Information used to answer the QUESTION
+    """
+    map = np.array(state.map)
+    agent_pos = np.array(state.player_position)
+
+    blocks_mapping = {
+        0: "INVALID",
+        1: "OUT_OF_BOUNDS",
+        2: "GRASS",
+        3: "WATER",
+        4: "STONE",
+        5: "TREE",
+        6: "WOOD",
+        7: "PATH",
+        8: "COAL",
+        9: "IRON",
+        10: "DIAMOND",
+        11: "CRAFTING_TABLE",
+        12: "FURNACE",
+        13: "SAND",
+        14: "LAVA",
+        15: "PLANT",
+        16: "RIPE_PLANT"
+    }

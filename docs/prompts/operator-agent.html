@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operator Agent | TalkingHeads Prompts</title>
+  <link rel="stylesheet" href="assets/prompts.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
+  <script src="assets/prompts.js" defer></script>
+</head>
+<body>
+  <div id="prompt-root">
+    <p class="crumb"><a href="../index.html">Home</a> / <a href="env-agent.html">Prompts</a> / Operator Agent</p>
+    <p class="page-kicker">Operator / oracle</p>
+    <h1>Operator Agent</h1>
+    <p class="lead">
+      When the Env Agent asks for help, the Operator (oracle) routes the question
+      to specialized experts. Expert prompts live under
+      <code>oracle/prompts/texts/</code> and answer map/state, mechanics, actions,
+      and goal-level synthesis.
+    </p>
+
+    <section class="schema" aria-label="Operator Agent schema">
+      <h2>Expert routing</h2>
+      <div class="schema-flow">
+        <div class="schema-row">
+          <div class="schema-node"><strong>Agent question</strong><span>ASK_OPERATOR</span></div>
+          <div class="schema-arrow" aria-hidden="true">→</div>
+          <div class="schema-node accent"><strong>Intent router</strong><span>oracle</span></div>
+        </div>
+        <div class="schema-row">
+          <div class="schema-node"><strong>State</strong><span>map / code query</span></div>
+          <div class="schema-node"><strong>Mechanics</strong><span>achievements</span></div>
+          <div class="schema-node"><strong>Action</strong><span>preconditions</span></div>
+          <div class="schema-node warn"><strong>Goal</strong><span>final answer</span></div>
+        </div>
+      </div>
+      <p class="schema-note">
+        ARC-AGI-3 demos use a human operator instead of these AI experts.
+      </p>
+    </section>
+
+    <div class="card-grid">
+      <a class="prompt-card" href="goal-expert.html">
+        <h3>Goal expert</h3>
+        <p>Synthesizes expert answers into a direct reply for the agent.</p>
+      </a>
+      <a class="prompt-card" href="state-expert.html">
+        <h3>State expert</h3>
+        <p>Map / world-state expert (code query over the block grid).</p>
+      </a>
+      <a class="prompt-card" href="mechanics-expert.html">
+        <h3>Mechanics expert</h3>
+        <p>Achievement dependencies and crafting mechanics.</p>
+      </a>
+      <a class="prompt-card" href="action-expert.html">
+        <h3>Action expert</h3>
+        <p>Preconditions for a named environment action.</p>
+      </a>
+    </div>
+
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      TalkingHeadsPrompts.mountChrome("operator-agent");
+
+    });
+  </script>
+</body>
+</html>
