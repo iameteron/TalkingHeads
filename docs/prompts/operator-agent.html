@@ -15,25 +15,34 @@
     <p class="page-kicker">Operator / oracle</p>
     <h1>Operator Agent</h1>
     <p class="lead">
-      When the Env Agent asks for help, the Operator (oracle) routes the question
-      to specialized experts. Expert prompts live under
-      <code>oracle/prompts/texts/</code> and answer map/state, mechanics, actions,
-      and goal-level synthesis.
+      When the Env Agent asks for help, the Operator runs the
+      <strong>Goal expert</strong>, which queries State, Mechanics, and Action
+      experts and merges their answers into one reply. Expert prompts live under
+      <code>oracle/prompts/texts/</code>. Intent routing is not used in the
+      current demo path.
     </p>
 
     <section class="schema" aria-label="Operator Agent schema">
-      <h2>Expert routing</h2>
+      <h2>Goal-expert merge</h2>
       <div class="schema-flow">
         <div class="schema-row">
           <div class="schema-node"><strong>Agent question</strong><span>ASK_OPERATOR</span></div>
           <div class="schema-arrow" aria-hidden="true">→</div>
-          <div class="schema-node accent"><strong>Intent router</strong><span>oracle</span></div>
+          <div class="schema-node accent"><strong>Goal expert</strong><span>orchestrates + merges</span></div>
+        </div>
+        <div class="schema-row schema-row-fanout">
+          <div class="schema-arrow schema-arrow-down" aria-hidden="true">↓</div>
         </div>
         <div class="schema-row">
           <div class="schema-node"><strong>State</strong><span>map / code query</span></div>
           <div class="schema-node"><strong>Mechanics</strong><span>achievements</span></div>
           <div class="schema-node"><strong>Action</strong><span>preconditions</span></div>
-          <div class="schema-node warn"><strong>Goal</strong><span>final answer</span></div>
+        </div>
+        <div class="schema-row schema-row-fanout">
+          <div class="schema-arrow schema-arrow-down" aria-hidden="true">↓ merge</div>
+        </div>
+        <div class="schema-row">
+          <div class="schema-node warn"><strong>Final answer</strong><span>Goal expert reply to agent</span></div>
         </div>
       </div>
       <p class="schema-note">
@@ -44,7 +53,7 @@
     <div class="card-grid">
       <a class="prompt-card" href="goal-expert.html">
         <h3>Goal expert</h3>
-        <p>Synthesizes expert answers into a direct reply for the agent.</p>
+        <p>Queries the other experts and merges their answers into one reply.</p>
       </a>
       <a class="prompt-card" href="state-expert.html">
         <h3>State expert</h3>

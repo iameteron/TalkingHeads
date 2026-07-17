@@ -382,6 +382,16 @@ h1 {
   min-width: 24px;
 }
 
+.schema-row-fanout {
+  justify-content: center;
+}
+
+.schema-arrow-down {
+  min-width: auto;
+  padding: 2px 0;
+  letter-spacing: 0.04em;
+}
+
 .schema-note {
   margin: 14px 0 0;
   color: var(--muted);
